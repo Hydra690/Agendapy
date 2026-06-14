@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { Prisma } from "@prisma/client";
 import { BookingSchema, formatZodErrors } from "@/lib/validations";
 import { logError } from "@/lib/logger";
 import { sendWhatsApp } from "@/lib/twilio";
+
+type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
 function parseDateUTCStrict(dateStr: string): Date | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
@@ -183,7 +184,7 @@ export async function POST(
     const endTime = addMinutes(startTime, service.duration);
 
     // Transacción: verificar disponibilidad + crear cliente + crear booking
-    const booking = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    const booking = await prisma.$transaction(async (tx: TxClient) => {
       // Verificar que el slot no esté tomado (race condition safe)
       const conflict = await tx.booking.findFirst({
         where: {
