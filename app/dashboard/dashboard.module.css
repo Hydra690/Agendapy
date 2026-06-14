@@ -1,0 +1,929 @@
+/* ---- LAYOUT ---- */
+.shell {
+  min-height: 100dvh;
+  display: flex;
+  background: #f5f7fa;
+}
+
+/* ---- SIDEBAR ---- */
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: #ffffff;
+  border-right: 1px solid #e8eaf0;
+  display: flex;
+  flex-direction: column;
+  padding: 24px 0 20px;
+  position: sticky;
+  top: 0;
+  height: 100dvh;
+  overflow-y: auto;
+}
+
+.sidebarLogo {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  letter-spacing: -0.5px;
+  padding: 0 20px 20px;
+  border-bottom: 1px solid #e8eaf0;
+  text-decoration: none;
+}
+
+.sidebarLogoAccent { color: #00c48c; }
+
+.sidebarBiz {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e8eaf0;
+}
+
+.sidebarBizName {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebarBizSlug {
+  font-size: 0.78rem;
+  color: #4a4a6a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav {
+  flex: 1;
+  padding: 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #4a4a6a;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-family: inherit;
+  width: 100%;
+  text-align: left;
+  text-decoration: none;
+  transition: all 0.15s;
+}
+
+.navItem:hover { background: #f5f7fa; color: #1a1a2e; }
+.navItemActive { background: #e6faf4; color: #009e71; }
+
+.navItemPlaceholder {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sidebarBottom {
+  padding: 12px;
+  border-top: 1px solid #e8eaf0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.btnViewPage {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #00c48c;
+  border: 1.5px solid #00c48c;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  text-decoration: none;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.btnViewPage:hover { background: #e6faf4; }
+
+.btnLogout {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #4a4a6a;
+  border: 1.5px solid #e8eaf0;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.btnLogout:hover { border-color: #ff6b6b; color: #cc0000; }
+
+/* ---- MAIN CONTENT ---- */
+.content {
+  flex: 1;
+  min-width: 0;
+  padding: 28px 24px;
+  overflow-y: auto;
+}
+
+.contentHeader {
+  margin-bottom: 24px;
+}
+
+.contentTitle {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  letter-spacing: -0.4px;
+  margin: 0 0 4px;
+}
+
+.contentSub {
+  color: #4a4a6a;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* ---- TWO-COLUMN MAIN GRID ---- */
+.mainGrid {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+/* ---- CALENDAR ---- */
+.calendarCard {
+  background: #ffffff;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.calendarNav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.calendarMonth {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  letter-spacing: -0.2px;
+  text-transform: capitalize;
+}
+
+.calendarNavBtn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1.5px solid #e8eaf0;
+  background: #fff;
+  color: #4a4a6a;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.calendarNavBtn:hover { border-color: #00c48c; color: #009e71; }
+
+.calendarGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendarDow {
+  text-align: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #b0b3c1;
+  padding: 4px 0 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.calendarDay {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  max-width: 36px;
+  max-height: 36px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: #1a1a2e;
+  background: none;
+  border: none;
+  font-family: inherit;
+  gap: 2px;
+}
+
+.calendarDay:hover { background: #f0fdf9; color: #009e71; }
+
+.calendarDaySelected {
+  background: #00c48c !important;
+  color: #ffffff !important;
+}
+
+.calendarDaySelected:hover { background: #009e71 !important; }
+
+.calendarDayPast {
+  color: #d0d3de;
+  cursor: default;
+  pointer-events: none;
+}
+
+.calendarDayEmpty {
+  pointer-events: none;
+}
+
+.calendarDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #00c48c;
+  flex-shrink: 0;
+}
+
+.calendarDaySelected .calendarDot {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.calendarDayBlocked {
+  color: #92400e;
+  background: #fffbeb;
+}
+
+.calendarDayBlocked:hover {
+  background: #fef3c7 !important;
+  color: #92400e !important;
+}
+
+/* ---- BOOKINGS PANEL ---- */
+.bookingsPanel {
+  background: #ffffff;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+  min-height: 420px;
+  overflow-y: auto;
+  max-height: calc(100dvh - 160px);
+}
+
+.blockedNotice {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  color: #92400e;
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+
+/* ---- BOOKINGS LIST ---- */
+.bookingsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.bookingsTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+.bookingsDate {
+  font-size: 0.82rem;
+  color: #4a4a6a;
+  font-weight: 500;
+}
+
+.bookingsCount {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #009e71;
+  background: #e6faf4;
+  padding: 3px 10px;
+  border-radius: 100px;
+}
+
+.bookingCard {
+  background: #ffffff;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.bookingTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.bookingTime {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  letter-spacing: -0.3px;
+}
+
+.bookingService {
+  font-size: 0.82rem;
+  color: #4a4a6a;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.statusBadge {
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.statusPending  { background: #fff9e6; color: #a06000; }
+.statusConfirmed { background: #e6faf4; color: #009e71; }
+.statusCancelled { background: #fff0f0; color: #cc0000; }
+.statusCompleted { background: #f0f0f5; color: #4a4a6a; }
+.statusNoShow   { background: #ffe8e8; color: #cc3333; }
+
+.bookingClient {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+}
+
+.bookingClientName {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1a1a2e;
+}
+
+.bookingWhatsapp {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: #25d366;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.bookingNotes {
+  font-size: 0.8rem;
+  color: #4a4a6a;
+  font-style: italic;
+  padding: 6px 10px;
+  background: #f5f7fa;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
+
+.bookingActions {
+  display: flex;
+  gap: 8px;
+}
+
+.btnConfirm {
+  padding: 8px 16px;
+  background: #00c48c;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.btnConfirm:hover { background: #009e71; }
+.btnConfirm:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btnComplete {
+  padding: 8px 16px;
+  background: #4a4a6a;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.btnComplete:hover { background: #2a2a4a; }
+.btnComplete:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btnCancel {
+  padding: 8px 16px;
+  background: transparent;
+  color: #cc0000;
+  border: 1.5px solid #ffcccc;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.btnCancel:hover { background: #fff0f0; }
+.btnCancel:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ---- EMPTY STATE ---- */
+.emptyState {
+  text-align: center;
+  padding: 52px 24px;
+  background: #fff;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 14px;
+}
+
+.emptyIcon { font-size: 3rem; margin-bottom: 12px; }
+.emptyTitle { font-size: 1rem; font-weight: 700; color: #1a1a2e; margin: 0 0 6px; }
+.emptyMsg { font-size: 0.88rem; color: #4a4a6a; margin: 0; }
+
+/* ---- SKELETON ---- */
+.skeletonLine {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f5f7fa 25%, #e8eaf0 50%, #f5f7fa 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---- STATS CARDS ---- */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.statCard {
+  background: #fff;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 14px;
+  padding: 18px 20px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.statLabel {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #b0b3c1;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+}
+
+.statValue {
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.statSub {
+  font-size: 0.75rem;
+  color: #b0b3c1;
+  margin-top: 4px;
+}
+
+.statAccent { color: #00c48c; }
+.statWarn   { color: #f59e0b; }
+.statDanger { color: #ef4444; }
+.statMuted  { color: #4a4a6a; }
+
+/* ---- LINK BANNER ---- */
+.linkBanner {
+  background: #fff;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.linkBannerLabel {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #4a4a6a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
+}
+
+.linkUrl {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #00c48c;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linkBannerBtns {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btnCopyLink {
+  padding: 8px 16px;
+  background: #1a1a2e;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btnCopyLink:hover { background: #2e2e50; }
+
+.btnOpenPage {
+  padding: 8px 16px;
+  background: transparent;
+  color: #00c48c;
+  border: 1.5px solid #00c48c;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+  text-decoration: none;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btnOpenPage:hover { background: #e6faf4; }
+
+/* ---- CANCEL MODAL ---- */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 26, 46, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.modalTitle {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  margin: 0 0 16px;
+}
+
+.modalInfo {
+  background: #f5f7fa;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+}
+
+.modalInfoName {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin-bottom: 4px;
+}
+
+.modalInfoTime {
+  font-size: 0.85rem;
+  color: #4a4a6a;
+}
+
+.modalTextarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  color: #1a1a2e;
+  outline: none;
+  resize: vertical;
+  margin-bottom: 18px;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.modalTextarea:focus { border-color: #00c48c; }
+
+.modalActions {
+  display: flex;
+  gap: 10px;
+}
+
+.btnModalConfirmCancel {
+  flex: 1;
+  padding: 11px 16px;
+  background: #cc0000;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.btnModalConfirmCancel:hover { background: #aa0000; }
+.btnModalConfirmCancel:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btnModalBack {
+  flex: 1;
+  padding: 11px 16px;
+  background: transparent;
+  color: #1a1a2e;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.btnModalBack:hover { border-color: #4a4a6a; }
+
+.modalDoneIcon {
+  width: 52px;
+  height: 52px;
+  background: #e6faf4;
+  border-radius: 50%;
+  color: #009e71;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 14px;
+}
+
+.modalDoneTitle {
+  font-size: 1rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+.btnWaNotify {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  background: #25d366;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  text-decoration: none;
+  margin-bottom: 10px;
+  transition: background 0.15s;
+  box-sizing: border-box;
+}
+
+.btnWaNotify:hover { background: #1da851; }
+
+/* ---- VIEW TOGGLE ---- */
+.viewToggle {
+  display: flex;
+  gap: 6px;
+  background: #f5f7fa;
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.viewToggleBtn {
+  padding: 6px 18px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #4a4a6a;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.viewToggleBtnActive {
+  background: #fff;
+  color: #1a1a2e;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+}
+
+/* ---- WEEK VIEW ---- */
+.weekView {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.weekDayCard {
+  background: #fff;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.weekDayHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 18px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+
+.weekDayHeader:hover { background: #fafafa; }
+
+.weekDayHeaderActive {
+  background: #f0fdf9;
+  border-bottom: 1.5px solid #e8eaf0;
+}
+
+.weekDayName {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  text-transform: capitalize;
+}
+
+.weekDayDate {
+  font-size: 0.78rem;
+  color: #4a4a6a;
+  font-weight: 500;
+}
+
+.weekDayCount {
+  font-size: 0.75rem;
+  font-weight: 700;
+  background: #e6faf4;
+  color: #009e71;
+  padding: 2px 9px;
+  border-radius: 100px;
+}
+
+.weekDayCountZero {
+  background: #f5f7fa;
+  color: #b0b3c1;
+}
+
+.weekDayBookings {
+  padding: 8px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.weekBookingRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  background: #f5f7fa;
+  border-radius: 10px;
+}
+
+.weekBookingTime {
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  white-space: nowrap;
+  min-width: 80px;
+}
+
+.weekBookingInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.weekBookingClient {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.weekBookingService {
+  font-size: 0.78rem;
+  color: #4a4a6a;
+  margin-top: 1px;
+}
+
+.weekDayEmpty {
+  padding: 14px 18px;
+  font-size: 0.82rem;
+  color: #b0b3c1;
+}
+
+/* ---- MOBILE ---- */
+@media (max-width: 768px) {
+  .statsGrid { grid-template-columns: repeat(2, 1fr); }
+  .shell { flex-direction: column; }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    border-right: none;
+    border-bottom: 1px solid #e8eaf0;
+  }
+  .sidebarLogo { border-bottom: none; padding: 0; flex: 1; }
+  .sidebarBiz { display: none; }
+  .nav { flex-direction: row; padding: 0; flex: 0 0 100%; margin-top: 10px; }
+  .sidebarBottom { flex-direction: row; border-top: none; padding: 0; flex: 0 0 auto; }
+  .content { padding: 16px; }
+  .mainGrid { grid-template-columns: 1fr; }
+  .bookingsPanel { max-height: none; min-height: 0; }
+}

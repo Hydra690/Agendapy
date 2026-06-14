@@ -1,0 +1,366 @@
+.pageHeader {
+  margin-bottom: 28px;
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  letter-spacing: -0.4px;
+  margin: 0 0 4px;
+}
+
+.pageSub {
+  font-size: 0.9rem;
+  color: #4a4a6a;
+  margin: 0;
+}
+
+/* ---- SECTION ---- */
+.section {
+  background: #fff;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.sectionTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 4px;
+}
+
+.sectionSub {
+  font-size: 0.85rem;
+  color: #4a4a6a;
+  margin: 0 0 20px;
+}
+
+/* ---- FORM ---- */
+.formGrid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.formGroup:last-of-type {
+  margin-bottom: 0;
+}
+
+.formLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.formInput {
+  padding: 10px 12px;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #1a1a2e;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+  background: #fff;
+}
+
+.formInput:focus { border-color: #00c48c; }
+
+.formTextarea {
+  resize: vertical;
+  min-height: 80px;
+  line-height: 1.5;
+}
+
+.formActions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.btnSave {
+  padding: 10px 22px;
+  background: #00c48c;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.btnSave:hover { background: #009e71; }
+.btnSave:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.savedMsg {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #009e71;
+}
+
+.formError {
+  background: #fff0f0;
+  border: 1px solid #ffcccc;
+  color: #cc0000;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  margin-top: 14px;
+}
+
+/* ---- SCHEDULE ---- */
+.scheduleList {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scheduleRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #e8eaf0;
+  background: #fff;
+  transition: border-color 0.15s, opacity 0.15s;
+}
+
+.scheduleRowInactive {
+  opacity: 0.55;
+}
+
+/* Toggle switch */
+.scheduleToggle {
+  position: relative;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.scheduleCheckbox {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.scheduleToggleTrack {
+  display: block;
+  width: 36px;
+  height: 20px;
+  border-radius: 100px;
+  background: #d1d5db;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.scheduleToggleTrack::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s;
+}
+
+.scheduleToggleOn {
+  background: #00c48c;
+}
+
+.scheduleToggleOn::after {
+  transform: translateX(16px);
+}
+
+.scheduleDayLabel {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1a1a2e;
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.scheduleTimePicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeInput {
+  padding: 7px 10px;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 7px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  color: #1a1a2e;
+  outline: none;
+  transition: border-color 0.15s;
+  background: #fff;
+  width: 100px;
+}
+
+.timeInput:focus { border-color: #00c48c; }
+
+.timeSep {
+  font-size: 0.85rem;
+  color: #4a4a6a;
+  font-weight: 500;
+}
+
+.scheduleClosed {
+  font-size: 0.82rem;
+  color: #b0b3c1;
+  font-weight: 500;
+}
+
+/* ---- BLOCKED DATES ---- */
+.blockedAddRow {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: stretch;
+}
+
+.blockedDateInput {
+  flex: 0 0 auto;
+  width: 160px;
+}
+
+.blockedReasonInput {
+  flex: 1;
+  min-width: 180px;
+}
+
+.btnAdd {
+  padding: 10px 18px;
+  background: #1a1a2e;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.btnAdd:hover { background: #2e2e50; }
+.btnAdd:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.blockedList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.blockedItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #e8eaf0;
+  background: #f5f7fa;
+}
+
+.blockedItemLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.blockedDateLabel {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.blockedReasonLabel {
+  font-size: 0.8rem;
+  color: #4a4a6a;
+}
+
+.btnRemove {
+  background: none;
+  border: 1.5px solid #ffcccc;
+  color: #cc0000;
+  border-radius: 7px;
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+
+.btnRemove:hover { background: #fff0f0; }
+
+.emptyBlocked {
+  text-align: center;
+  padding: 20px;
+  color: #b0b3c1;
+  font-size: 0.88rem;
+  background: #f5f7fa;
+  border-radius: 10px;
+  border: 1.5px dashed #e8eaf0;
+}
+
+/* ---- LOGO PREVIEW ---- */
+.logoPreview {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.logoPreviewImg {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1.5px solid #e8eaf0;
+  background: #f5f7fa;
+}
+
+/* ---- SKELETON ---- */
+.skeletonLine {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f5f7fa 25%, #e8eaf0 50%, #f5f7fa 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  display: block;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---- MOBILE ---- */
+@media (max-width: 768px) {
+  .formGrid2 { grid-template-columns: 1fr; }
+  .scheduleRow { flex-wrap: wrap; gap: 10px; }
+  .scheduleDayLabel { width: 70px; }
+}

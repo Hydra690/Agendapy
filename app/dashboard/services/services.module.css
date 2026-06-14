@@ -1,0 +1,277 @@
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.pageTitle {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  letter-spacing: -0.4px;
+  margin: 0 0 4px;
+}
+
+.pageSub {
+  font-size: 0.9rem;
+  color: #4a4a6a;
+  margin: 0;
+}
+
+.btnNew {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: #00c48c;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.btnNew:hover { background: #009e71; }
+
+/* ---- FORM CARD ---- */
+.formCard {
+  background: #fff;
+  border: 1.5px solid #00c48c;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 4px 20px rgba(0, 196, 140, 0.1);
+}
+
+.formTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 20px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 120px 160px;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.formLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.formInput {
+  padding: 10px 12px;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #1a1a2e;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+  background: #fff;
+}
+
+.formInput:focus { border-color: #00c48c; }
+
+.formActions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.btnSave {
+  padding: 10px 20px;
+  background: #00c48c;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.btnSave:hover { background: #009e71; }
+.btnSave:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.btnCancelForm {
+  padding: 10px 16px;
+  background: transparent;
+  color: #4a4a6a;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.btnCancelForm:hover { border-color: #b0b3c1; color: #1a1a2e; }
+
+.formError {
+  background: #fff0f0;
+  border: 1px solid #ffcccc;
+  color: #cc0000;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.85rem;
+  margin-top: 8px;
+}
+
+/* ---- SERVICE CARDS ---- */
+.serviceList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.serviceCard {
+  background: #fff;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  transition: border-color 0.15s;
+}
+
+.serviceCard:hover { border-color: #c8cad6; }
+
+.serviceCardInactive {
+  opacity: 0.5;
+}
+
+.serviceIcon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+}
+
+.serviceInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.serviceName {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0 0 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.serviceMeta {
+  font-size: 0.8rem;
+  color: #4a4a6a;
+  font-weight: 500;
+}
+
+.serviceCardRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.badgeActive {
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #e6faf4;
+  color: #009e71;
+}
+
+.badgeInactive {
+  padding: 3px 10px;
+  border-radius: 100px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: #f5f7fa;
+  color: #b0b3c1;
+}
+
+.btnEdit {
+  padding: 7px 14px;
+  background: transparent;
+  color: #4a4a6a;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.btnEdit:hover { border-color: #00c48c; color: #009e71; }
+
+.btnToggle {
+  padding: 7px 14px;
+  background: transparent;
+  color: #b0b3c1;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.btnToggle:hover { border-color: #ffcccc; color: #cc0000; }
+.btnToggle:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ---- EMPTY ---- */
+.emptyState {
+  text-align: center;
+  padding: 52px 24px;
+  background: #fff;
+  border: 1.5px dashed #e8eaf0;
+  border-radius: 14px;
+}
+
+.emptyIcon { font-size: 2.8rem; margin-bottom: 12px; }
+.emptyTitle { font-size: 1rem; font-weight: 700; color: #1a1a2e; margin: 0 0 6px; }
+.emptyMsg { font-size: 0.88rem; color: #4a4a6a; margin: 0; }
+
+/* ---- SKELETON ---- */
+.skeletonLine {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #f5f7fa 25%, #e8eaf0 50%, #f5f7fa 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ---- MOBILE ---- */
+@media (max-width: 768px) {
+  .pageHeader { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .formGrid { grid-template-columns: 1fr; }
+  .serviceCard { flex-wrap: wrap; }
+  .serviceCardRight { width: 100%; justify-content: flex-end; }
+}

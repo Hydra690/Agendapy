@@ -1,0 +1,373 @@
+// =============================================================
+// AGENDAPY — Prisma Schema
+// Versión: MVP + arquitectura extensible
+// =============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =============================================================
+// ENUMS
+// =============================================================
+
+enum DayOfWeek {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+enum BookingStatus {
+  PENDING     // Reserva recibida, esperando confirmación del negocio
+  CONFIRMED   // Confirmada por el negocio
+  CANCELLED   // Cancelada (por cualquiera de las partes)
+  COMPLETED   // Atención realizada
+  NO_SHOW     // El cliente no se presentó
+}
+
+enum BusinessCategory {
+  BARBERSHOP        // Barbería
+  BEAUTY_SALON      // Salón de belleza
+  VETERINARY        // Veterinaria
+  PSYCHOLOGY        // Psicología
+  DENTISTRY         // Odontología
+  MEDICINE          // Medicina general / independiente
+  FITNESS           // Entrenador / gimnasio
+  PHOTOGRAPHY       // Fotografía
+  TUTORING          // Clases particulares
+  MASSAGE           // Masajes / spa
+  OTHER             // Otros
+}
+
+enum PlanType {
+  FREE
+  BASIC
+  PRO
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// =============================================================
+// USER — Dueño de uno o más negocios
+// Auth manejada por NextAuth (Account y Session son sus tablas)
+// =============================================================
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  phone         String?
+  password      String?   // bcrypt hash; null for OAuth-only users
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relaciones
+  businesses    Business[]
+  accounts      Account[]
+  sessions      Session[]
+}
+
+// Tablas requeridas por NextAuth
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// =============================================================
+// BUSINESS — El negocio en sí
+// Un User puede tener múltiples negocios (futuro: franquicias)
+// =============================================================
+
+model Business {
+  id          String           @id @default(cuid())
+  name        String
+  slug        String           @unique  // URL pública: agendapy.com/{slug}
+  category    BusinessCategory
+  description String?
+  address     String?
+  phone       String?
+  whatsapp    String?          // Número para notificaciones
+  logoUrl     String?
+  coverUrl    String?          // Foto de portada de la página pública
+  instagram   String?          // Handle sin @, ej: "mi_barberia"
+  facebook    String?          // URL o handle de Facebook
+  timezone    String           @default("America/Asuncion")
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Plan de suscripción
+  plan        PlanType         @default(FREE)
+  planExpiry  DateTime?
+  trialEndsAt DateTime?
+
+  // Relaciones
+  ownerId     String
+  owner       User             @relation(fields: [ownerId], references: [id])
+
+  services        Service[]
+  staff           Staff[]
+  availability    Availability[]
+  blockedDates    BlockedDate[]
+  bookings        Booking[]
+  clients         Client[]
+  clinicalRecords ClinicalRecord[]  // Futuro: ficha clínica
+  reviews         Review[]
+}
+
+// =============================================================
+// STAFF — Empleados / profesionales del negocio
+// En el MVP solo hay 1 (el dueño). La tabla ya está lista.
+// =============================================================
+
+model Staff {
+  id         String   @id @default(cuid())
+  name       String
+  role       String?  // "Barbero", "Odontólogo", etc.
+  phone      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  services     Service[]    @relation("StaffServices")  // Qué servicios puede hacer
+  availability Availability[]
+  bookings     Booking[]
+}
+
+// =============================================================
+// SERVICE — Servicios que ofrece el negocio
+// =============================================================
+
+model Service {
+  id          String   @id @default(cuid())
+  name        String                          // "Corte de cabello", "Limpieza dental"
+  description String?
+  duration    Int                             // En minutos
+  price       Int?                            // En guaraníes (null = precio a consultar)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  staff    Staff[]   @relation("StaffServices")
+  bookings Booking[]
+}
+
+// =============================================================
+// AVAILABILITY — Horario semanal recurrente
+// Se define por negocio Y opcionalmente por staff
+// =============================================================
+
+model Availability {
+  id         String     @id @default(cuid())
+  dayOfWeek  DayOfWeek
+  startTime  String     // "08:00" — formato HH:mm
+  endTime    String     // "18:00"
+  isActive   Boolean    @default(true)
+
+  businessId String
+  business   Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // Opcional: disponibilidad específica por empleado
+  staffId    String?
+  staff      Staff?     @relation(fields: [staffId], references: [id])
+
+  @@unique([businessId, staffId, dayOfWeek]) // Un horario por día por negocio/empleado
+}
+
+// =============================================================
+// BLOCKED DATE — Días no disponibles (feriados, vacaciones)
+// =============================================================
+
+model BlockedDate {
+  id         String   @id @default(cuid())
+  date       DateTime @db.Date
+  reason     String?  // "Feriado", "Vacaciones", etc.
+  createdAt  DateTime @default(now())
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, date])
+}
+
+// =============================================================
+// CLIENT — El cliente del negocio
+// Entidad propia para soportar historial y ficha clínica
+// =============================================================
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  whatsapp  String?
+  email     String?
+  notes     String?  // Notas internas del negocio sobre el cliente
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  bookings        Booking[]
+  clinicalRecords ClinicalRecord[]  // Futuro
+
+  @@unique([businessId, whatsapp]) // Un cliente por número por negocio
+}
+
+// =============================================================
+// BOOKING — La reserva en sí
+// Corazón del sistema
+// =============================================================
+
+model Booking {
+  id            String        @id @default(cuid())
+  date          DateTime      @db.Date
+  startTime     String        // "10:00"
+  endTime       String        // "10:30"
+  status        BookingStatus @default(PENDING)
+  notes         String?       // Notas del cliente al reservar
+
+  // Timestamps de cambios de estado
+  confirmedAt   DateTime?
+  cancelledAt   DateTime?
+  completedAt   DateTime?
+  cancellationReason String?
+
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Relaciones
+  businessId    String
+  business      Business      @relation(fields: [businessId], references: [id])
+
+  serviceId     String
+  service       Service       @relation(fields: [serviceId], references: [id])
+
+  clientId      String
+  client        Client        @relation(fields: [clientId], references: [id])
+
+  staffId       String?       // Opcional en MVP, requerido cuando hay múltiples empleados
+  staff         Staff?        @relation(fields: [staffId], references: [id])
+
+  // Recordatorio 24h
+  reminderSent   Boolean   @default(false)
+  reminderSentAt DateTime?
+
+  // Notificaciones enviadas
+  notifications BookingNotification[]
+
+  @@unique([businessId, staffId, date, startTime])
+  @@index([businessId, date])
+  @@index([date, status, reminderSent])
+  @@index([clientId])
+}
+
+// =============================================================
+// BOOKING NOTIFICATION — Registro de notificaciones enviadas
+// Saber si se envió el WhatsApp, si llegó el recordatorio, etc.
+// =============================================================
+
+model BookingNotification {
+  id        String   @id @default(cuid())
+  type      String   // "CONFIRMATION", "REMINDER_24H", "CANCELLATION"
+  channel   String   // "WHATSAPP", "EMAIL" (futuro)
+  sentAt    DateTime @default(now())
+  success   Boolean
+  error     String?
+
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+}
+
+// =============================================================
+// REVIEW — Testimonios de clientes (moderados por el dueño)
+// =============================================================
+
+model Review {
+  id           String       @id @default(cuid())
+  reviewerName String
+  text         String       @db.Text
+  rating       Int          // 1-5 estrellas
+  status       ReviewStatus @default(PENDING)
+  createdAt    DateTime     @default(now())
+
+  businessId   String
+  business     Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, status])
+}
+
+// =============================================================
+// CLINICAL RECORD — Ficha clínica
+// Invisible en el MVP. Lista para v2 (salud).
+// =============================================================
+
+model ClinicalRecord {
+  id          String   @id @default(cuid())
+  date        DateTime @default(now())
+  subjective  String?  @db.Text  // Lo que refiere el paciente
+  objective   String?  @db.Text  // Lo que observa el profesional
+  assessment  String?  @db.Text  // Diagnóstico / evaluación
+  plan        String?  @db.Text  // Plan de tratamiento
+  attachments String[] @default([]) // URLs de archivos (futuro)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Estructura SOAP estándar en salud (Subjective / Objective / Assessment / Plan)
+
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id])
+
+  businessId  String
+  business    Business @relation(fields: [businessId], references: [id])
+}
