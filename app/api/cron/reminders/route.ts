@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
     }
 
     const results = await Promise.allSettled(
-      bookings.map(async (booking) => {
+      bookings.map(async (booking: (typeof bookings)[number]) => {
         const dateStr = (booking.date as Date).toISOString().split("T")[0];
         const [y, m, d] = dateStr.split("-").map(Number);
         const fechaLegible = new Date(y, m - 1, d).toLocaleDateString("es-PY", {
