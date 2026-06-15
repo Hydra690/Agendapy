@@ -163,7 +163,10 @@ async function testRateLimit(slug: string, serviceId: string, date: string) {
   const limited = statuses.filter((s) => s === 429).length;
   console.log(`   200: ${ok}  ·  429: ${limited}`);
 
-  const usingRedis = !!(process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN);
+  const usingRedis = !!(
+    (process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL) &&
+    (process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN)
+  );
   console.log(`   backend rate-limit: ${usingRedis ? "Upstash Redis" : "Map en memoria (dev / instancia única)"}`);
 
   const pass = limited > 0;
