@@ -1,28 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
+import { requireBusiness } from "@/lib/api-auth";
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
+    const ctx = await requireBusiness();
+    if ("response" in ctx) return ctx.response;
+    const { business } = ctx;
 
     const { id } = await params;
-
-    const business = await prisma.business.findFirst({
-      where: { ownerId: session.user.id },
-      select: { id: true },
-    });
-
-    if (!business) {
-      return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
-    }
 
     const client = await prisma.client.findFirst({
       where: { id, businessId: business.id },
@@ -64,22 +54,12 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
+    const ctx = await requireBusiness();
+    if ("response" in ctx) return ctx.response;
+    const { business } = ctx;
 
     const { id } = await params;
     const body = await request.json() as { notes?: string };
-
-    const business = await prisma.business.findFirst({
-      where: { ownerId: session.user.id },
-      select: { id: true },
-    });
-
-    if (!business) {
-      return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
-    }
 
     const existing = await prisma.client.findFirst({
       where: { id, businessId: business.id },

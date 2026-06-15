@@ -2,37 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SlotsQuerySchema, formatZodErrors } from "@/lib/validations";
 import { logError } from "@/lib/logger";
-import { parseDateUTC, addMinutes } from "@/lib/date";
+import { parseDateUTC } from "@/lib/date";
 import { todayInTz } from "@/lib/timezone";
-
-function generateSlots(
-  startTime: string,
-  endTime: string,
-  durationMinutes: number
-): string[] {
-  const slots: string[] = [];
-  const [startH, startM] = startTime.split(":").map(Number);
-  const [endH, endM] = endTime.split(":").map(Number);
-  let current = startH * 60 + startM;
-  const end = endH * 60 + endM;
-  while (current + durationMinutes <= end) {
-    const h = Math.floor(current / 60).toString().padStart(2, "0");
-    const m = (current % 60).toString().padStart(2, "0");
-    slots.push(`${h}:${m}`);
-    current += durationMinutes;
-  }
-  return slots;
-}
-
-const DAY_MAP: Record<string, number> = {
-  SUNDAY: 0,
-  MONDAY: 1,
-  TUESDAY: 2,
-  WEDNESDAY: 3,
-  THURSDAY: 4,
-  FRIDAY: 5,
-  SATURDAY: 6,
-};
+import { availableSlots, dayOfWeekUTC } from "@/lib/booking";
 
 export async function GET(
   request: NextRequest,
@@ -100,16 +72,11 @@ export async function GET(
       );
     }
 
-    // Día de la semana usando UTC para evitar desfasaje
-    const dowIndex = date.getUTCDay();
-    const dayOfWeek = Object.keys(DAY_MAP).find(
-      (key) => DAY_MAP[key] === dowIndex
-    );
-
+    // Día de la semana (UTC: la fecha es un día calendario)
     const availability = await prisma.availability.findFirst({
       where: {
         businessId: business.id,
-        dayOfWeek: dayOfWeek as never,
+        dayOfWeek: dayOfWeekUTC(date),
         isActive: true,
         staffId: null,
       },
@@ -122,12 +89,6 @@ export async function GET(
       });
     }
 
-    const allSlots = generateSlots(
-      availability.startTime,
-      availability.endTime,
-      service.duration
-    );
-
     // Reservas ocupadas para esa fecha (con su rango completo, no solo el inicio:
     // un servicio de otra duración puede pisar varios slots de este servicio).
     const existingBookings = await prisma.booking.findMany({
@@ -139,16 +100,11 @@ export async function GET(
       select: { startTime: true, endTime: true },
     });
 
-    // Un slot [slotStart, slotEnd) está libre si no se solapa con ninguna reserva.
-    // Solapamiento: reserva.start < slotEnd Y reserva.end > slotStart.
-    // La comparación lexicográfica de "HH:mm" (ancho fijo) equivale a la temporal.
-    const availableSlots = allSlots.filter((slot) => {
-      const slotEnd = addMinutes(slot, service.duration);
-      return !existingBookings.some(
-        (b: { startTime: string; endTime: string }) =>
-          b.startTime < slotEnd && b.endTime > slot
-      );
-    });
+    const slots = availableSlots(
+      { startTime: availability.startTime, endTime: availability.endTime },
+      service.duration,
+      existingBookings
+    );
 
     return NextResponse.json(
       {
@@ -161,7 +117,7 @@ export async function GET(
           duration: service.duration,
           price: service.price,
         },
-        slots: availableSlots,
+        slots,
       },
       { headers: { "Cache-Control": "s-maxage=60, stale-while-revalidate=30" } }
     );

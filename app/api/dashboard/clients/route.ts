@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
+import { requireBusiness } from "@/lib/api-auth";
 
 // Paginación acotada para no escanear sin límite cuando el negocio crece.
 function parsePaging(url: string, defLimit: number, maxLimit: number) {
@@ -13,19 +13,9 @@ function parsePaging(url: string, defLimit: number, maxLimit: number) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
-
-    const business = await prisma.business.findFirst({
-      where: { ownerId: session.user.id },
-      select: { id: true },
-    });
-
-    if (!business) {
-      return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
-    }
+    const ctx = await requireBusiness();
+    if ("response" in ctx) return ctx.response;
+    const { business } = ctx;
 
     const { limit, offset } = parsePaging(request.url, 100, 300);
 

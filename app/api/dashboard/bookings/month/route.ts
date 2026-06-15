@@ -1,14 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
+import { requireBusiness } from "@/lib/api-auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
+    const ctx = await requireBusiness();
+    if ("response" in ctx) return ctx.response;
+    const { business } = ctx;
 
     const { searchParams } = new URL(request.url);
     const yearParam = searchParams.get("year");
@@ -22,13 +21,6 @@ export async function GET(request: NextRequest) {
         { error: "Parámetros year y month requeridos" },
         { status: 400 }
       );
-    }
-
-    const business = await prisma.business.findFirst({
-      where: { ownerId: session.user.id },
-    });
-    if (!business) {
-      return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
     }
 
     const start = new Date(Date.UTC(year, month - 1, 1));

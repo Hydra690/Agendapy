@@ -11,7 +11,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:seed": "tsx prisma/seed.ts",
-    "loadtest": "tsx scripts/loadtest.ts"
+    "loadtest": "tsx scripts/loadtest.ts",
+    "smoke": "tsx scripts/smoke-auth.ts"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",

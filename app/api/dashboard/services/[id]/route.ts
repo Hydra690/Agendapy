@@ -1,14 +1,15 @@
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { ServiceUpdateSchema, formatZodErrors } from "@/lib/validations";
+import { requireUserId } from "@/lib/api-auth";
 
 export async function PATCH(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const u = await requireUserId();
+  if ("response" in u) return u.response;
+  const { userId } = u;
 
   const { id } = await params;
   let raw: unknown;
@@ -27,7 +28,7 @@ export async function PATCH(
   const body = parsed.data;
 
   const service = await prisma.service.findFirst({
-    where: { id, business: { ownerId: session.user.id } },
+    where: { id, business: { ownerId: userId } },
   });
   if (!service) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 
@@ -49,13 +50,14 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const u = await requireUserId();
+  if ("response" in u) return u.response;
+  const { userId } = u;
 
   const { id } = await params;
 
   const service = await prisma.service.findFirst({
-    where: { id, business: { ownerId: session.user.id } },
+    where: { id, business: { ownerId: userId } },
   });
   if (!service) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
 

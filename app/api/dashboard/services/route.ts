@@ -1,14 +1,12 @@
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { ServiceCreateSchema, formatZodErrors } from "@/lib/validations";
+import { requireBusiness } from "@/lib/api-auth";
 
 export async function GET() {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
-
-  const business = await prisma.business.findFirst({ where: { ownerId: session.user.id } });
-  if (!business) return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
+  const ctx = await requireBusiness();
+  if ("response" in ctx) return ctx.response;
+  const { business } = ctx;
 
   const services = await prisma.service.findMany({
     where: { businessId: business.id },
@@ -19,8 +17,9 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+  const ctx = await requireBusiness();
+  if ("response" in ctx) return ctx.response;
+  const { business } = ctx;
 
   let raw: unknown;
   try {
@@ -36,9 +35,6 @@ export async function POST(req: Request) {
     );
   }
   const { name, duration, price, description } = parsed.data;
-
-  const business = await prisma.business.findFirst({ where: { ownerId: session.user.id } });
-  if (!business) return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
 
   const service = await prisma.service.create({
     data: {

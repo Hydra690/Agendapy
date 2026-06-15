@@ -1,26 +1,14 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
-
-function parseDateUTC(dateStr: string): Date | null {
-  const parts = dateStr.split("-").map(Number);
-  if (parts.length !== 3) return null;
-  const [year, month, day] = parts;
-  if (!year || !month || !day) return null;
-  return new Date(Date.UTC(year, month - 1, day));
-}
-
-async function getBusiness(userId: string) {
-  return prisma.business.findFirst({ where: { ownerId: userId }, select: { id: true } });
-}
+import { parseDateUTC } from "@/lib/date";
+import { requireBusiness } from "@/lib/api-auth";
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    const business = await getBusiness(session.user.id);
-    if (!business) return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
+    const ctx = await requireBusiness();
+    if ("response" in ctx) return ctx.response;
+    const { business } = ctx;
     const blockedDates = await prisma.blockedDate.findMany({
       where: { businessId: business.id },
       orderBy: { date: "asc" },
@@ -35,10 +23,9 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    const business = await getBusiness(session.user.id);
-    if (!business) return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
+    const ctx = await requireBusiness();
+    if ("response" in ctx) return ctx.response;
+    const { business } = ctx;
 
     const { date, reason } = await req.json() as { date: string; reason?: string };
     if (!date) return NextResponse.json({ error: "La fecha es requerida." }, { status: 400 });
@@ -61,10 +48,9 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    const business = await getBusiness(session.user.id);
-    if (!business) return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
+    const ctx = await requireBusiness();
+    if ("response" in ctx) return ctx.response;
+    const { business } = ctx;
 
     const { id } = await req.json() as { id: string };
     if (!id) return NextResponse.json({ error: "ID requerido." }, { status: 400 });

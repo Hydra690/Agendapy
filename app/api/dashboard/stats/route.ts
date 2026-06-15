@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
+import { requireBusiness } from "@/lib/api-auth";
 
 function getWeekBounds(date: Date): { start: Date; end: Date } {
   const d = new Date(date);
@@ -16,24 +16,14 @@ function getWeekBounds(date: Date): { start: Date; end: Date } {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
+    const ctx = await requireBusiness();
+    if ("response" in ctx) return ctx.response;
+    const { business } = ctx;
 
     const { searchParams } = new URL(request.url);
     const now = new Date();
     const year = parseInt(searchParams.get("year") ?? String(now.getFullYear()));
     const month = parseInt(searchParams.get("month") ?? String(now.getMonth() + 1));
-
-    const business = await prisma.business.findFirst({
-      where: { ownerId: session.user.id },
-      select: { id: true },
-    });
-
-    if (!business) {
-      return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
-    }
 
     const startDate = new Date(Date.UTC(year, month - 1, 1));
     const endDate = new Date(Date.UTC(year, month, 1));

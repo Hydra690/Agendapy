@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { DayOfWeek } from "@prisma/client";
 import { logError } from "@/lib/logger";
 import { AvailabilityPutSchema, formatZodErrors } from "@/lib/validations";
+import { requireBusiness } from "@/lib/api-auth";
 
 const DAY_ORDER: DayOfWeek[] = [
   "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY",
@@ -11,19 +11,9 @@ const DAY_ORDER: DayOfWeek[] = [
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
-
-    const business = await prisma.business.findFirst({
-      where: { ownerId: session.user.id },
-      select: { id: true },
-    });
-
-    if (!business) {
-      return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
-    }
+    const ctx = await requireBusiness();
+    if ("response" in ctx) return ctx.response;
+    const { business } = ctx;
 
     const rows = await prisma.availability.findMany({
       where: { businessId: business.id, staffId: null },
@@ -48,19 +38,9 @@ interface DayInput {
 
 export async function PUT(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
-
-    const business = await prisma.business.findFirst({
-      where: { ownerId: session.user.id },
-      select: { id: true },
-    });
-
-    if (!business) {
-      return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
-    }
+    const ctx = await requireBusiness();
+    if ("response" in ctx) return ctx.response;
+    const { business } = ctx;
 
     let raw: unknown;
     try {

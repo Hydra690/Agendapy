@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
 import { BusinessUpdateSchema, formatZodErrors } from "@/lib/validations";
+import { requireUserId } from "@/lib/api-auth";
 
 const BUSINESS_SELECT = {
   id: true,
@@ -32,13 +32,12 @@ const BUSINESS_SELECT = {
 
 export async function GET() {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
+    const u = await requireUserId();
+    if ("response" in u) return u.response;
+    const { userId } = u;
 
     const business = await prisma.business.findFirst({
-      where: { ownerId: session.user.id },
+      where: { ownerId: userId },
       select: BUSINESS_SELECT,
     });
 
@@ -55,10 +54,9 @@ export async function GET() {
 
 export async function PATCH(req: Request) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
+    const u = await requireUserId();
+    if ("response" in u) return u.response;
+    const { userId } = u;
 
     let rawBody: unknown;
     try {
@@ -77,7 +75,7 @@ export async function PATCH(req: Request) {
     const data = parsed.data;
 
     const business = await prisma.business.findFirst({
-      where: { ownerId: session.user.id },
+      where: { ownerId: userId },
       select: { id: true },
     });
 

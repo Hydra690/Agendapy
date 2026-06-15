@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
+import { requireUserId } from "@/lib/api-auth";
 
 const VALID_CATEGORIES = [
   "BARBERSHOP", "BEAUTY_SALON", "VETERINARY", "PSYCHOLOGY",
@@ -22,10 +22,9 @@ function slugify(text: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
+    const u = await requireUserId();
+    if ("response" in u) return u.response;
+    const { userId } = u;
 
     let body: unknown;
     try {
@@ -52,7 +51,7 @@ export async function POST(request: NextRequest) {
     // El resto de la app asume 1 negocio por usuario (findFirst por ownerId).
     // Evitamos negocios huérfanos: si ya tiene uno, no se crea otro.
     const ownBusiness = await prisma.business.findFirst({
-      where: { ownerId: session.user.id },
+      where: { ownerId: userId },
       select: { id: true },
     });
     if (ownBusiness) {
@@ -88,7 +87,7 @@ export async function POST(request: NextRequest) {
           slug: finalSlug,
           category: category as (typeof VALID_CATEGORIES)[number],
           whatsapp: typeof whatsapp === "string" ? whatsapp.trim() || null : null,
-          ownerId: session.user.id,
+          ownerId: userId,
           trialEndsAt,
         },
       });

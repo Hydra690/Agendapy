@@ -1,23 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
+import { requireBusiness } from "@/lib/api-auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
-
-    const business = await prisma.business.findFirst({
-      where: { ownerId: session.user.id },
-      select: { id: true },
-    });
-
-    if (!business) {
-      return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
-    }
+    const ctx = await requireBusiness();
+    if ("response" in ctx) return ctx.response;
+    const { business } = ctx;
 
     const sp = new URL(request.url).searchParams;
     const limit = Math.min(Math.max(parseInt(sp.get("limit") ?? "200", 10) || 200, 1), 500);
@@ -42,10 +32,9 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
-    }
+    const ctx = await requireBusiness();
+    if ("response" in ctx) return ctx.response;
+    const { business } = ctx;
 
     const body = await request.json() as { id: string; action: "APPROVE" | "REJECT" };
 
@@ -54,15 +43,6 @@ export async function PATCH(request: NextRequest) {
         { error: "Se requiere id y action (APPROVE|REJECT)" },
         { status: 400 }
       );
-    }
-
-    const business = await prisma.business.findFirst({
-      where: { ownerId: session.user.id },
-      select: { id: true },
-    });
-
-    if (!business) {
-      return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
     }
 
     const existing = await prisma.review.findFirst({
