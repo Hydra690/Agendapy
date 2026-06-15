@@ -7,7 +7,19 @@ function toWhatsAppNumber(raw: string): string {
   return `whatsapp:+${stripped}`;
 }
 
-export async function sendWhatsApp(to: string, body: string): Promise<void> {
+export interface WhatsAppOptions {
+  // Content SID de una plantilla aprobada de Twilio. Requerido en producción para
+  // mensajes iniciados por el negocio fuera de la ventana de 24h. Si se provee, se
+  // envía la plantilla con sus variables en vez del texto plano.
+  contentSid?: string;
+  contentVariables?: Record<string, string>;
+}
+
+export async function sendWhatsApp(
+  to: string,
+  body: string,
+  opts: WhatsAppOptions = {}
+): Promise<void> {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
   const from = process.env.TWILIO_WHATSAPP_FROM;
@@ -20,8 +32,15 @@ export async function sendWhatsApp(to: string, body: string): Promise<void> {
   const params = new URLSearchParams({
     From: from,
     To: toWhatsAppNumber(to),
-    Body: body,
   });
+  if (opts.contentSid) {
+    params.set("ContentSid", opts.contentSid);
+    if (opts.contentVariables) {
+      params.set("ContentVariables", JSON.stringify(opts.contentVariables));
+    }
+  } else {
+    params.set("Body", body);
+  }
 
   const res = await fetch(`${TWILIO_API}/${sid}/Messages.json`, {
     method: "POST",

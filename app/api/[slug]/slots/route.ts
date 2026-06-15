@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SlotsQuerySchema, formatZodErrors } from "@/lib/validations";
 import { logError } from "@/lib/logger";
+import { parseDateUTC, addMinutes } from "@/lib/date";
+import { todayInTz } from "@/lib/timezone";
 
 function generateSlots(
   startTime: string,
@@ -32,15 +34,6 @@ const DAY_MAP: Record<string, number> = {
   SATURDAY: 6,
 };
 
-// Parsea "YYYY-MM-DD" a un Date UTC sin ambigüedad de timezone
-function parseDateUTC(dateStr: string): Date | null {
-  const parts = dateStr.split("-").map(Number);
-  if (parts.length !== 3) return null;
-  const [year, month, day] = parts;
-  if (!year || !month || !day) return null;
-  return new Date(Date.UTC(year, month - 1, day));
-}
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
@@ -69,19 +62,19 @@ export async function GET(
       );
     }
 
-    const todayUTC = new Date().toISOString().split("T")[0];
-    if (dateParam < todayUTC) {
-      return NextResponse.json(
-        { error: "No se pueden consultar fechas pasadas" },
-        { status: 400 }
-      );
-    }
-
     const business = await prisma.business.findUnique({ where: { slug } });
     if (!business) {
       return NextResponse.json(
         { error: "Negocio no encontrado" },
         { status: 404 }
+      );
+    }
+
+    // "Fecha pasada" según la tz del negocio, no la del servidor (UTC).
+    if (dateParam < todayInTz(business.timezone)) {
+      return NextResponse.json(
+        { error: "No se pueden consultar fechas pasadas" },
+        { status: 400 }
       );
     }
 
@@ -135,20 +128,27 @@ export async function GET(
       service.duration
     );
 
-    // Reservas ocupadas para esa fecha
+    // Reservas ocupadas para esa fecha (con su rango completo, no solo el inicio:
+    // un servicio de otra duración puede pisar varios slots de este servicio).
     const existingBookings = await prisma.booking.findMany({
       where: {
         businessId: business.id,
         date,
         status: { in: ["PENDING", "CONFIRMED"] },
       },
-      select: { startTime: true },
+      select: { startTime: true, endTime: true },
     });
 
-    const occupiedSlots = new Set(
-      existingBookings.map((b: { startTime: string }) => b.startTime)
-    );
-    const availableSlots = allSlots.filter((slot) => !occupiedSlots.has(slot));
+    // Un slot [slotStart, slotEnd) está libre si no se solapa con ninguna reserva.
+    // Solapamiento: reserva.start < slotEnd Y reserva.end > slotStart.
+    // La comparación lexicográfica de "HH:mm" (ancho fijo) equivale a la temporal.
+    const availableSlots = allSlots.filter((slot) => {
+      const slotEnd = addMinutes(slot, service.duration);
+      return !existingBookings.some(
+        (b: { startTime: string; endTime: string }) =>
+          b.startTime < slotEnd && b.endTime > slot
+      );
+    });
 
     return NextResponse.json(
       {

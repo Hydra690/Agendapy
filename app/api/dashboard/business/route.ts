@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
+import { BusinessUpdateSchema, formatZodErrors } from "@/lib/validations";
 
 const BUSINESS_SELECT = {
   id: true,
@@ -59,21 +60,21 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "No autenticado" }, { status: 401 });
     }
 
-    const body = await req.json() as {
-      name?: string;
-      description?: string;
-      address?: string;
-      phone?: string;
-      whatsapp?: string;
-      logoUrl?: string;
-      coverUrl?: string;
-      instagram?: string;
-      facebook?: string;
-    };
-
-    if (!body.name?.trim()) {
-      return NextResponse.json({ error: "El nombre es requerido." }, { status: 400 });
+    let rawBody: unknown;
+    try {
+      rawBody = await req.json();
+    } catch {
+      return NextResponse.json({ error: "Cuerpo de la solicitud inválido" }, { status: 400 });
     }
+
+    const parsed = BusinessUpdateSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Datos inválidos", fields: formatZodErrors(parsed.error.issues) },
+        { status: 400 }
+      );
+    }
+    const data = parsed.data;
 
     const business = await prisma.business.findFirst({
       where: { ownerId: session.user.id },
@@ -87,15 +88,15 @@ export async function PATCH(req: Request) {
     await prisma.business.update({
       where: { id: business.id },
       data: {
-        name: body.name.trim(),
-        description: body.description?.trim() || null,
-        address: body.address?.trim() || null,
-        phone: body.phone?.trim() || null,
-        whatsapp: body.whatsapp?.trim() || null,
-        logoUrl: body.logoUrl?.trim() || null,
-        coverUrl: body.coverUrl?.trim() || null,
-        instagram: body.instagram?.trim() || null,
-        facebook: body.facebook?.trim() || null,
+        name: data.name,
+        description: data.description ?? null,
+        address: data.address ?? null,
+        phone: data.phone ?? null,
+        whatsapp: data.whatsapp ?? null,
+        logoUrl: data.logoUrl ?? null,
+        coverUrl: data.coverUrl ?? null,
+        instagram: data.instagram ?? null,
+        facebook: data.facebook ?? null,
       },
     });
 

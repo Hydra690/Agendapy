@@ -49,7 +49,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Categoría inválida" }, { status: 400 });
     }
 
+    // El resto de la app asume 1 negocio por usuario (findFirst por ownerId).
+    // Evitamos negocios huérfanos: si ya tiene uno, no se crea otro.
+    const ownBusiness = await prisma.business.findFirst({
+      where: { ownerId: session.user.id },
+      select: { id: true },
+    });
+    if (ownBusiness) {
+      return NextResponse.json(
+        { error: "Ya tenés un negocio creado." },
+        { status: 409 }
+      );
+    }
+
     const finalSlug = slugify(slug);
+    if (finalSlug.length < 2) {
+      return NextResponse.json({ error: "Slug inválido" }, { status: 400 });
+    }
 
     const existing = await prisma.business.findUnique({
       where: { slug: finalSlug },
@@ -64,16 +80,28 @@ export async function POST(request: NextRequest) {
     const trialEndsAt = new Date();
     trialEndsAt.setDate(trialEndsAt.getDate() + 30);
 
-    const business = await prisma.business.create({
-      data: {
-        name: name.trim(),
-        slug: finalSlug,
-        category: category as (typeof VALID_CATEGORIES)[number],
-        whatsapp: typeof whatsapp === "string" ? whatsapp.trim() || null : null,
-        ownerId: session.user.id,
-        trialEndsAt,
-      },
-    });
+    let business;
+    try {
+      business = await prisma.business.create({
+        data: {
+          name: name.trim(),
+          slug: finalSlug,
+          category: category as (typeof VALID_CATEGORIES)[number],
+          whatsapp: typeof whatsapp === "string" ? whatsapp.trim() || null : null,
+          ownerId: session.user.id,
+          trialEndsAt,
+        },
+      });
+    } catch (e) {
+      // Race: otro request tomó el slug entre el check y el insert.
+      if (e && typeof e === "object" && "code" in e && e.code === "P2002") {
+        return NextResponse.json(
+          { error: "Este nombre ya está registrado. Probá con una variación." },
+          { status: 409 }
+        );
+      }
+      throw e;
+    }
 
     return NextResponse.json({ business }, { status: 201 });
   } catch (error) {

@@ -187,65 +187,20 @@ Crea una nueva reserva. Valida disponibilidad dentro de una transacción para ev
 
 ## 4. Listar reservas del día
 
-**`GET /api/:slug/bookings`**
-
-Devuelve las reservas de un negocio para una fecha específica. Pensado para el panel del dueño.
-
-### Parámetros de ruta
-
-| Parámetro | Tipo   | Descripción               |
-|-----------|--------|---------------------------|
-| `slug`    | string | Identificador del negocio |
-
-### Query params
-
-| Parámetro | Tipo   | Requerido | Descripción                                                        |
-|-----------|--------|-----------|--------------------------------------------------------------------|
-| `date`    | string | Sí        | Fecha en formato `YYYY-MM-DD`                                      |
-| `status`  | string | No        | Filtra por estado: `PENDING`, `CONFIRMED`, `CANCELLED`, `COMPLETED`, `NO_SHOW` |
-
-### Respuesta exitosa `200`
-
-```json
-{
-  "date": "2026-06-15",
-  "bookings": [
-    {
-      "id":        "cmqb6bldj0001kwuqpscjtper",
-      "startTime": "10:00",
-      "endTime":   "10:30",
-      "status":    "PENDING",
-      "notes":     "Primera vez",
-      "client": {
-        "name":     "Juan Pérez",
-        "whatsapp": "595981123456"
-      },
-      "service": {
-        "name":     "Corte de cabello",
-        "duration": 30,
-        "price":    50000
-      }
-    }
-  ],
-  "total": 1
-}
-```
-
-### Errores
-
-| Código | Condición                             |
-|--------|---------------------------------------|
-| `400`  | Falta `date`, fecha inválida, `status` inválido |
-| `404`  | Negocio no encontrado                 |
-| `500`  | Error interno                         |
+> ⚠️ **Eliminado.** `GET /api/:slug/bookings` exponía públicamente el nombre y el
+> WhatsApp de todos los clientes (PII) sin autenticación. Se quitó. El panel del
+> dueño usa el endpoint autenticado **`GET /api/dashboard/bookings?date=`**, que
+> deriva el negocio de la sesión y no requiere `slug` en la URL.
 
 ---
 
 ## 5. Actualizar estado de reserva
 
-**`PATCH /api/:slug/bookings/:bookingId`**
+**`PATCH /api/:slug/bookings/:bookingId`** · 🔒 **Requiere sesión**
 
 Actualiza el estado de una reserva y registra el timestamp correspondiente.
+Requiere estar autenticado como dueño del negocio (`slug`); de lo contrario
+devuelve `401`/`404`. La llamada se hace desde el dashboard con la cookie de sesión.
 
 ### Parámetros de ruta
 
@@ -307,5 +262,6 @@ Para cancelaciones:
 | Código | Condición                                              |
 |--------|--------------------------------------------------------|
 | `400`  | `status` faltante o inválido                           |
-| `404`  | Negocio o reserva no encontrada (o reserva de otro negocio) |
+| `401`  | No autenticado                                         |
+| `404`  | Negocio o reserva no encontrada, o no sos el dueño del negocio |
 | `500`  | Error interno                                          |

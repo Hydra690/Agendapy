@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
+import { createToken } from "@/lib/tokens";
+import { sendVerificationEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,14 +47,23 @@ export async function POST(request: NextRequest) {
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
+    const normalizedEmail = email.toLowerCase().trim();
 
     await prisma.user.create({
       data: {
         name: name.trim(),
-        email: email.toLowerCase().trim(),
+        email: normalizedEmail,
         password: hashedPassword,
       },
     });
+
+    // Verificación de email (no bloqueante: no impedimos el login si falla el envío).
+    try {
+      const token = await createToken("verify", normalizedEmail);
+      await sendVerificationEmail(normalizedEmail, token);
+    } catch (e) {
+      logError("[register] verify email", e);
+    }
 
     return NextResponse.json({ success: true }, { status: 201 });
   } catch (error) {

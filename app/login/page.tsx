@@ -72,6 +72,9 @@ export default function LoginPage() {
           <button type="submit" style={{ ...S.btn, ...(disabled ? S.btnDisabled : {}) }} disabled={disabled}>
             {loading ? "Iniciando sesión..." : "Iniciar sesión →"}
           </button>
+          <div style={{ ...S.footer, marginTop: 14 }}>
+            <a href="/forgot-password" style={S.link}>¿Olvidaste tu contraseña?</a>
+          </div>
         </form>
 
         <div style={S.divider}><span style={S.line} /> o continuá con <span style={S.line} /></div>

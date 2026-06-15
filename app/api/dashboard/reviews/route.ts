@@ -3,7 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -19,12 +19,21 @@ export async function GET() {
       return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
     }
 
-    const reviews = await prisma.review.findMany({
-      where: { businessId: business.id },
-      orderBy: [{ status: "asc" }, { createdAt: "desc" }],
-    });
+    const sp = new URL(request.url).searchParams;
+    const limit = Math.min(Math.max(parseInt(sp.get("limit") ?? "200", 10) || 200, 1), 500);
+    const offset = Math.max(parseInt(sp.get("offset") ?? "0", 10) || 0, 0);
 
-    return NextResponse.json({ reviews });
+    const [total, reviews] = await Promise.all([
+      prisma.review.count({ where: { businessId: business.id } }),
+      prisma.review.findMany({
+        where: { businessId: business.id },
+        orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+        take: limit,
+        skip: offset,
+      }),
+    ]);
+
+    return NextResponse.json({ reviews, total, limit, offset });
   } catch (error) {
     logError("[dashboard/reviews] GET", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });

@@ -1,110 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { BookingSchema, formatZodErrors } from "@/lib/validations";
 import { logError } from "@/lib/logger";
-import { sendWhatsApp } from "@/lib/twilio";
+import { notifyWhatsApp } from "@/lib/notify";
+import { parseDateUTC, addMinutes, dateToISODate } from "@/lib/date";
+import { todayInTz } from "@/lib/timezone";
 
-type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
-
-function parseDateUTCStrict(dateStr: string): Date | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
-  const parts = dateStr.split("-").map(Number);
-  const [year, month, day] = parts;
-  if (!year || !month || !day) return null;
-  return new Date(Date.UTC(year, month - 1, day));
-}
-
-const VALID_STATUSES = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW"] as const;
-type BookingStatusType = (typeof VALID_STATUSES)[number];
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ slug: string }> }
-) {
-  try {
-    const { slug } = await params;
-    const { searchParams } = new URL(request.url);
-    const dateParam = searchParams.get("date");
-    const statusParam = searchParams.get("status");
-
-    if (!dateParam) {
-      return NextResponse.json(
-        { error: "Parámetro requerido: date (YYYY-MM-DD)" },
-        { status: 400 }
-      );
-    }
-
-    const date = parseDateUTCStrict(dateParam);
-    if (!date) {
-      return NextResponse.json(
-        { error: "Formato de fecha inválido. Usá YYYY-MM-DD" },
-        { status: 400 }
-      );
-    }
-
-    if (statusParam && !VALID_STATUSES.includes(statusParam as BookingStatusType)) {
-      return NextResponse.json(
-        { error: `status inválido. Valores permitidos: ${VALID_STATUSES.join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    const business = await prisma.business.findUnique({ where: { slug } });
-    if (!business) {
-      return NextResponse.json(
-        { error: "Negocio no encontrado" },
-        { status: 404 }
-      );
-    }
-
-    const bookings = await prisma.booking.findMany({
-      where: {
-        businessId: business.id,
-        date,
-        ...(statusParam ? { status: statusParam as BookingStatusType } : {}),
-      },
-      select: {
-        id: true,
-        startTime: true,
-        endTime: true,
-        status: true,
-        notes: true,
-        client: { select: { name: true, whatsapp: true } },
-        service: { select: { name: true, duration: true, price: true } },
-      },
-      orderBy: { startTime: "asc" },
-    });
-
-    return NextResponse.json({
-      date: dateParam,
-      bookings,
-      total: bookings.length,
-    });
-  } catch (error) {
-    logError("[bookings:GET]", error);
-    return NextResponse.json(
-      { error: "Error interno del servidor" },
-      { status: 500 }
-    );
-  }
-}
-
-function parseDateUTC(dateStr: string): Date | null {
-  const parts = dateStr.split("-").map(Number);
-  if (parts.length !== 3) return null;
-  const [year, month, day] = parts;
-  if (!year || !month || !day) return null;
-  return new Date(Date.UTC(year, month - 1, day));
-}
-
-function addMinutes(time: string, minutes: number): string {
-  const [h, m] = time.split(":").map(Number);
-  const total = h * 60 + m + minutes;
-  const endH = Math.floor(total / 60) % 24;
-  const endM = total % 60;
-  return `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`;
-}
-
+// NOTA: el listado de reservas por fecha es información sensible (PII de clientes)
+// y vive solo en el dashboard autenticado: GET /api/dashboard/bookings.
+// Este endpoint público expone únicamente la creación de reservas (POST).
 
 export async function POST(
   request: NextRequest,
@@ -157,6 +62,15 @@ export async function POST(
       );
     }
 
+    // No permitir reservar en una fecha pasada (según la tz del negocio, no la del
+    // servidor). El endpoint de slots ya lo valida, pero el POST era directo.
+    if (dateParam < todayInTz(business.timezone)) {
+      return NextResponse.json(
+        { error: "No se pueden reservar fechas pasadas" },
+        { status: 400 }
+      );
+    }
+
     const service = await prisma.service.findFirst({
       where: { id: serviceId, businessId: business.id, isActive: true },
     });
@@ -167,57 +81,47 @@ export async function POST(
       );
     }
 
+    const endTime = addMinutes(startTime, service.duration);
+
+    // Límite de 2 reservas activas por cliente.
     const activeBookings = await prisma.booking.count({
       where: {
         businessId: business.id,
-        client: { whatsapp: clientWhatsapp as string },
+        client: { whatsapp: clientWhatsapp },
         status: { in: ["PENDING", "CONFIRMED"] },
       },
     });
     if (activeBookings >= 2) {
-      return NextResponse.json(
-        { error: "Ya tenés 2 reservas activas en este negocio. Cancelá una antes de reservar nuevamente." },
-        { status: 400 }
-      );
+      throw new BookingLimitError();
     }
 
-    const endTime = addMinutes(startTime, service.duration);
+    // Pre-chequeo de solapamiento de rangos [startTime, endTime) para dar un
+    // mensaje claro y evitar el caso común. La garantía ATÓMICA contra dos
+    // reservas del mismo slot la da el índice único parcial de la DB
+    // ("Booking_active_slot_unique", ver migración) → P2002 al insertar.
+    // Como "HH:mm" tiene ancho fijo, la comparación lexicográfica equivale a la
+    // temporal: dos rangos se pisan si existente.start < nuevo.end Y existente.end > nuevo.start.
+    const conflict = await prisma.booking.findFirst({
+      where: {
+        businessId: business.id,
+        date: bookingDate,
+        status: { in: ["PENDING", "CONFIRMED"] },
+        startTime: { lt: endTime },
+        endTime: { gt: startTime },
+      },
+      select: { id: true },
+    });
+    if (conflict) {
+      throw new SlotTakenError();
+    }
 
-    // Transacción: verificar disponibilidad + crear cliente + crear booking
-    const booking = await prisma.$transaction(async (tx: TxClient) => {
-      // Verificar que el slot no esté tomado (race condition safe)
-      const conflict = await tx.booking.findFirst({
-        where: {
-          businessId: business.id,
-          date: bookingDate,
-          startTime,
-          status: { in: ["PENDING", "CONFIRMED"] },
-        },
-      });
-      if (conflict) {
-        throw new SlotTakenError();
-      }
+    // Upsert del cliente por whatsapp+negocio (idempotente; carrera cubierta por
+    // el unique businessId_whatsapp → reintento de lectura).
+    const client = await upsertClient(business.id, clientWhatsapp, clientName.trim());
 
-      // Crear o encontrar el cliente por whatsapp+negocio
-      let client = await tx.client.findUnique({
-        where: {
-          businessId_whatsapp: {
-            businessId: business.id,
-            whatsapp: clientWhatsapp,
-          },
-        },
-      });
-      if (!client) {
-        client = await tx.client.create({
-          data: {
-            name: clientName.trim(),
-            whatsapp: clientWhatsapp,
-            businessId: business.id,
-          },
-        });
-      }
-
-      return tx.booking.create({
+    let booking;
+    try {
+      booking = await prisma.booking.create({
         data: {
           date: bookingDate,
           startTime,
@@ -233,11 +137,17 @@ export async function POST(
           client: { select: { id: true, name: true, whatsapp: true } },
         },
       });
-    });
+    } catch (e) {
+      // Violación del índice único parcial → otro request ganó el slot.
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+        throw new SlotTakenError();
+      }
+      throw e;
+    }
 
-    // Notificar al dueño por WhatsApp (fire-and-forget)
+    // Notificar al dueño por WhatsApp (fire-and-forget, con registro persistido)
     if (business.whatsapp) {
-      const [y, m, d] = (booking.date as Date).toISOString().split("T")[0].split("-").map(Number);
+      const [y, m, d] = dateToISODate(booking.date as Date).split("-").map(Number);
       const fechaLegible = new Date(y, m - 1, d).toLocaleDateString("es-PY", {
         weekday: "long", day: "numeric", month: "long",
       });
@@ -246,13 +156,34 @@ export async function POST(
         `👤 ${booking.client.name}${booking.client.whatsapp ? ` · ${booking.client.whatsapp}` : ""}\n` +
         `🛠️ ${booking.service.name}\n` +
         `📅 ${fechaLegible} a las ${booking.startTime} hs`;
-      sendWhatsApp(business.whatsapp, ownerMsg).catch((e) =>
-        logError("[bookings] notif owner", e)
-      );
+      const templateSid = process.env.TWILIO_TEMPLATE_NEW_BOOKING_SID;
+      void notifyWhatsApp({
+        bookingId: booking.id,
+        to: business.whatsapp,
+        body: ownerMsg,
+        type: "NEW_BOOKING_OWNER",
+        options: templateSid
+          ? {
+              contentSid: templateSid,
+              contentVariables: {
+                "1": business.name,
+                "2": booking.client.name,
+                "3": booking.service.name,
+                "4": `${fechaLegible} ${booking.startTime}`,
+              },
+            }
+          : undefined,
+      });
     }
 
     return NextResponse.json({ booking }, { status: 201 });
   } catch (error) {
+    if (error instanceof BookingLimitError) {
+      return NextResponse.json(
+        { error: "Ya tenés 2 reservas activas en este negocio. Cancelá una antes de reservar nuevamente." },
+        { status: 400 }
+      );
+    }
     if (error instanceof SlotTakenError) {
       return NextResponse.json(
         { error: "SLOT_TAKEN", message: "Este horario ya fue reservado. Por favor elegí otro." },
@@ -270,5 +201,32 @@ export async function POST(
 class SlotTakenError extends Error {
   constructor() {
     super("slot_taken");
+  }
+}
+
+class BookingLimitError extends Error {
+  constructor() {
+    super("booking_limit");
+  }
+}
+
+// Encuentra el cliente por (negocio, whatsapp) o lo crea. Si dos requests del
+// mismo cliente corren a la vez, el unique businessId_whatsapp hace fallar el
+// create con P2002 y reintentamos la lectura (el cliente ya existe).
+async function upsertClient(businessId: string, whatsapp: string, name: string) {
+  const existing = await prisma.client.findUnique({
+    where: { businessId_whatsapp: { businessId, whatsapp } },
+  });
+  if (existing) return existing;
+  try {
+    return await prisma.client.create({ data: { name, whatsapp, businessId } });
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+      const c = await prisma.client.findUnique({
+        where: { businessId_whatsapp: { businessId, whatsapp } },
+      });
+      if (c) return c;
+    }
+    throw e;
   }
 }

@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { DayOfWeek } from "@prisma/client";
 import { logError } from "@/lib/logger";
+import { AvailabilityPutSchema, formatZodErrors } from "@/lib/validations";
 
 const DAY_ORDER: DayOfWeek[] = [
   "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY",
@@ -61,7 +62,20 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
     }
 
-    const { schedule } = await req.json() as { schedule: DayInput[] };
+    let raw: unknown;
+    try {
+      raw = await req.json();
+    } catch {
+      return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+    }
+    const parsed = AvailabilityPutSchema.safeParse(raw);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Datos inválidos", fields: formatZodErrors(parsed.error.issues) },
+        { status: 400 }
+      );
+    }
+    const schedule = parsed.data.schedule as DayInput[];
 
     // Fetch existing records so we can update vs create without relying on
     // upsert (which doesn't support nullable fields in composite unique keys)

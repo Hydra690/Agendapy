@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
 
@@ -10,6 +11,14 @@ export async function PATCH(
   { params }: { params: Promise<{ slug: string; bookingId: string }> }
 ) {
   try {
+    // Cambiar el estado de una reserva es una acción del dueño: requiere sesión
+    // y que el negocio (slug) le pertenezca. Sin esto, cualquiera con el slug
+    // público y el bookingId podría cancelar/confirmar reservas ajenas.
+    const session = await auth();
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "No autenticado" }, { status: 401 });
+    }
+
     const { slug, bookingId } = await params;
 
     let body: unknown;
@@ -38,8 +47,11 @@ export async function PATCH(
       );
     }
 
-    const business = await prisma.business.findUnique({ where: { slug } });
-    if (!business) {
+    const business = await prisma.business.findUnique({
+      where: { slug },
+      select: { id: true, ownerId: true },
+    });
+    if (!business || business.ownerId !== session.user.id) {
       return NextResponse.json(
         { error: "Negocio no encontrado" },
         { status: 404 }

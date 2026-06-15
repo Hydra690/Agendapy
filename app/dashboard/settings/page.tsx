@@ -171,8 +171,13 @@ export default function SettingsPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(bizForm),
       });
-      const data = await res.json() as { error?: string; business?: Business };
-      if (!res.ok) { setBizError(data.error ?? "Error al guardar."); return; }
+      const data = await res.json() as { error?: string; fields?: Record<string, string>; business?: Business };
+      if (!res.ok) {
+        // Mostrar el detalle por campo si el server lo devuelve (ej. URL inválida).
+        const fieldMsg = data.fields ? Object.values(data.fields)[0] : null;
+        setBizError(fieldMsg ?? data.error ?? "Error al guardar.");
+        return;
+      }
       setBusiness(data.business!);
       setBizSaved(true);
       setTimeout(() => setBizSaved(false), 3000);

@@ -430,15 +430,24 @@ export default function DashboardPage() {
           <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "#4a4a6a", textTransform: "capitalize" }}>
             {monthLabel}
           </span>
-          <a
-            href={`/api/dashboard/export?year=${calYear}&month=${calMonth}`}
-            download
-            style={{ fontSize: "0.8rem", fontWeight: 700, color: "#4a4a6a", border: "1.5px solid #e8eaf0", borderRadius: 8, padding: "5px 14px", textDecoration: "none", background: "#fff", transition: "all 0.15s" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "#00c48c"; (e.currentTarget as HTMLAnchorElement).style.color = "#009e71"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "#e8eaf0"; (e.currentTarget as HTMLAnchorElement).style.color = "#4a4a6a"; }}
-          >
-            ↓ Exportar CSV
-          </a>
+          {business && hasAccess(business) ? (
+            <a
+              href={`/api/dashboard/export?year=${calYear}&month=${calMonth}`}
+              download
+              style={{ fontSize: "0.8rem", fontWeight: 700, color: "#4a4a6a", border: "1.5px solid #e8eaf0", borderRadius: 8, padding: "5px 14px", textDecoration: "none", background: "#fff", transition: "all 0.15s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "#00c48c"; (e.currentTarget as HTMLAnchorElement).style.color = "#009e71"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.borderColor = "#e8eaf0"; (e.currentTarget as HTMLAnchorElement).style.color = "#4a4a6a"; }}
+            >
+              ↓ Exportar CSV
+            </a>
+          ) : (
+            <span
+              title="El export de CSV requiere un plan activo."
+              style={{ fontSize: "0.8rem", fontWeight: 700, color: "#b0b3c1", border: "1.5px solid #e8eaf0", borderRadius: 8, padding: "5px 14px", background: "#f7f8fb", cursor: "not-allowed" }}
+            >
+              ↓ Exportar CSV 🔒
+            </span>
+          )}
         </div>
       )}
       {stats && (

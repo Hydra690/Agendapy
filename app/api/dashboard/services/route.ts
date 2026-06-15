@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { ServiceCreateSchema, formatZodErrors } from "@/lib/validations";
 
 export async function GET() {
   const session = await auth();
@@ -21,12 +22,20 @@ export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
-  const body = await req.json() as { name?: string; duration?: string | number; price?: string | number | null; description?: string };
-  const { name, duration, price, description } = body;
-
-  if (!name?.trim() || !duration) {
-    return NextResponse.json({ error: "Nombre y duración son requeridos" }, { status: 400 });
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
   }
+  const parsed = ServiceCreateSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Datos inválidos", fields: formatZodErrors(parsed.error.issues) },
+      { status: 400 }
+    );
+  }
+  const { name, duration, price, description } = parsed.data;
 
   const business = await prisma.business.findFirst({ where: { ownerId: session.user.id } });
   if (!business) return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
@@ -34,10 +43,10 @@ export async function POST(req: Request) {
   const service = await prisma.service.create({
     data: {
       businessId: business.id,
-      name: name.trim(),
-      duration: Number(duration),
-      price: price !== undefined && price !== "" && price !== null ? Number(price) : null,
-      description: description?.trim() || null,
+      name,
+      duration,
+      price: price ?? null,
+      description: description ?? null,
     },
   });
 

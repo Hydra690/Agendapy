@@ -1,6 +1,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { ServiceUpdateSchema, formatZodErrors } from "@/lib/validations";
 
 export async function PATCH(
   req: Request,
@@ -10,13 +11,20 @@ export async function PATCH(
   if (!session?.user?.id) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
 
   const { id } = await params;
-  const body = await req.json() as {
-    name?: string;
-    duration?: string | number;
-    price?: string | number | null;
-    description?: string;
-    isActive?: boolean;
-  };
+  let raw: unknown;
+  try {
+    raw = await req.json();
+  } catch {
+    return NextResponse.json({ error: "JSON inválido" }, { status: 400 });
+  }
+  const parsed = ServiceUpdateSchema.safeParse(raw);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: "Datos inválidos", fields: formatZodErrors(parsed.error.issues) },
+      { status: 400 }
+    );
+  }
+  const body = parsed.data;
 
   const service = await prisma.service.findFirst({
     where: { id, business: { ownerId: session.user.id } },
@@ -26,12 +34,10 @@ export async function PATCH(
   const updated = await prisma.service.update({
     where: { id },
     data: {
-      ...(body.name !== undefined && { name: body.name.trim() }),
-      ...(body.duration !== undefined && { duration: Number(body.duration) }),
-      ...(body.price !== undefined && {
-        price: body.price === "" || body.price === null ? null : Number(body.price),
-      }),
-      ...(body.description !== undefined && { description: body.description?.trim() || null }),
+      ...(body.name !== undefined && { name: body.name }),
+      ...(body.duration !== undefined && { duration: body.duration }),
+      ...(body.price !== undefined && { price: body.price ?? null }),
+      ...(body.description !== undefined && { description: body.description ?? null }),
       ...(body.isActive !== undefined && { isActive: body.isActive }),
     },
   });

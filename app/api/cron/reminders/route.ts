@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { sendWhatsApp } from "@/lib/twilio";
+import { notifyWhatsApp } from "@/lib/notify";
 import { logInfo, logError } from "@/lib/logger";
+import { dateToISODate } from "@/lib/date";
+import { addDaysYmd, tomorrowRange, ymdToUtcDate } from "@/lib/timezone";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -10,19 +12,20 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const nowUtc = new Date();
-    const tomorrowStart = new Date(
-      Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate() + 1)
-    );
-    const tomorrowEnd = new Date(
-      Date.UTC(nowUtc.getUTCFullYear(), nowUtc.getUTCMonth(), nowUtc.getUTCDate() + 2)
-    );
+    const now = new Date();
 
-    const bookings = await prisma.booking.findMany({
+    // Ventana amplia en UTC (hoy..+3 días) y luego filtramos por la tz de CADA
+    // negocio para quedarnos solo con los turnos de "mañana" en su zona horaria.
+    // "mañana" en distintas zonas cae siempre dentro de esta ventana.
+    const utcTodayYmd = now.toISOString().split("T")[0];
+    const windowStart = ymdToUtcDate(utcTodayYmd);
+    const windowEnd = ymdToUtcDate(addDaysYmd(utcTodayYmd, 3));
+
+    const candidates = await prisma.booking.findMany({
       where: {
         status: "CONFIRMED",
         reminderSent: false,
-        date: { gte: tomorrowStart, lt: tomorrowEnd },
+        date: { gte: windowStart, lt: windowEnd },
       },
       select: {
         id: true,
@@ -30,19 +33,27 @@ export async function GET(request: NextRequest) {
         startTime: true,
         client: { select: { name: true, whatsapp: true } },
         service: { select: { name: true } },
-        business: { select: { name: true, slug: true } },
+        business: { select: { name: true, timezone: true } },
       },
     });
 
+    // Quedarnos solo con los que son "mañana" en la tz de su negocio.
+    const bookings = candidates.filter(
+      (b) => dateToISODate(b.date as Date) === tomorrowRange(b.business.timezone, now).ymd
+    );
+
     if (bookings.length === 0) {
-      logInfo("[cron/reminders]", { processed: 0, total: 0 });
+      logInfo("[cron/reminders]", { processed: 0, total: 0, candidates: candidates.length });
       return NextResponse.json({ processed: 0, total: 0 });
     }
 
-    const results = await Promise.allSettled(
-      bookings.map(async (booking: (typeof bookings)[number]) => {
-        const dateStr = (booking.date as Date).toISOString().split("T")[0];
-        const [y, m, d] = dateStr.split("-").map(Number);
+    const templateSid = process.env.TWILIO_TEMPLATE_REMINDER_SID;
+
+    const results = await Promise.all(
+      bookings.map(async (booking) => {
+        if (!booking.client.whatsapp) return false;
+
+        const [y, m, d] = dateToISODate(booking.date as Date).split("-").map(Number);
         const fechaLegible = new Date(y, m - 1, d).toLocaleDateString("es-PY", {
           weekday: "long", day: "numeric", month: "long",
         });
@@ -54,28 +65,38 @@ export async function GET(request: NextRequest) {
           `📅 ${fechaLegible} a las ${booking.startTime} hs\n\n` +
           `¿Necesitás cancelar? Avisanos con tiempo. ¡Hasta mañana! 😊`;
 
-        if (booking.client.whatsapp) {
-          await sendWhatsApp(booking.client.whatsapp, message);
-        }
+        return notifyWhatsApp({
+          bookingId: booking.id,
+          to: booking.client.whatsapp,
+          body: message,
+          type: "REMINDER_24H",
+          options: templateSid
+            ? {
+                contentSid: templateSid,
+                contentVariables: {
+                  "1": booking.client.name,
+                  "2": booking.business.name,
+                  "3": booking.service.name,
+                  "4": `${fechaLegible} ${booking.startTime}`,
+                },
+              }
+            : undefined,
+        });
       })
     );
 
-    const sent = results.filter(r => r.status === "fulfilled").length;
-    const failed = results.filter(r => r.status === "rejected").length;
+    // Solo marcamos como enviados los que efectivamente salieron; los fallidos
+    // quedan con reminderSent=false para reintentarse en la próxima corrida.
+    const sentIds = bookings.filter((_, i) => results[i]).map((b) => b.id);
+    const sent = sentIds.length;
+    const failed = bookings.length - sent;
 
-    if (failed > 0) {
-      results.forEach((r, i) => {
-        if (r.status === "rejected") {
-          logError(`[cron/reminders] booking ${bookings[i].id}`, r.reason);
-        }
+    if (sentIds.length > 0) {
+      await prisma.booking.updateMany({
+        where: { id: { in: sentIds } },
+        data: { reminderSent: true, reminderSentAt: new Date() },
       });
     }
-
-    const ids = bookings.map((b) => b.id);
-    await prisma.booking.updateMany({
-      where: { id: { in: ids } },
-      data: { reminderSent: true, reminderSentAt: new Date() },
-    });
 
     logInfo("[cron/reminders] done", { sent, failed, total: bookings.length });
     return NextResponse.json({ sent, failed, total: bookings.length });

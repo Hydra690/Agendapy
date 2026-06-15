@@ -1,0 +1,34 @@
+// Utilidades de fecha/hora compartidas.
+// Las fechas de reserva se manejan a medianoche UTC para evitar desfasajes
+// por la timezone del servidor (Vercel corre en UTC).
+
+/** Parsea "YYYY-MM-DD" a Date en medianoche UTC. Devuelve null si el formato es inválido. */
+export function parseDateUTC(dateStr: string): Date | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+  const [year, month, day] = dateStr.split("-").map(Number);
+  if (!year || !month || !day) return null;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  // Rechaza fechas imposibles que JS normaliza (ej. 2026-02-31)
+  if (
+    date.getUTCFullYear() !== year ||
+    date.getUTCMonth() !== month - 1 ||
+    date.getUTCDate() !== day
+  ) {
+    return null;
+  }
+  return date;
+}
+
+/** Suma minutos a un "HH:mm" y devuelve "HH:mm" (envuelve a 24h). */
+export function addMinutes(time: string, minutes: number): string {
+  const [h, m] = time.split(":").map(Number);
+  const total = h * 60 + m + minutes;
+  const endH = Math.floor(total / 60) % 24;
+  const endM = total % 60;
+  return `${endH.toString().padStart(2, "0")}:${endM.toString().padStart(2, "0")}`;
+}
+
+/** Convierte un Date (columna @db.Date) a "YYYY-MM-DD" en UTC. */
+export function dateToISODate(date: Date): string {
+  return date.toISOString().split("T")[0];
+}
