@@ -1,9 +1,20 @@
-import NextAuth from "next-auth";
+import NextAuth, { CredentialsSignin } from "next-auth";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "./auth.config";
+
+// Forzar verificación de email para login con credenciales. Gateado por env para
+// poder desplegar el chequeo sin bloquear registros mientras el envío de email
+// (Resend + dominio verificado) no esté listo. Flip a "true" cuando lo esté.
+const REQUIRE_EMAIL_VERIFICATION = process.env.REQUIRE_EMAIL_VERIFICATION === "true";
+
+// Error tipado para que el cliente distinga "email no verificado" de credenciales
+// inválidas. El `code` viaja en la URL (?code=...) y lo lee signIn(redirect:false).
+class EmailNotVerifiedError extends CredentialsSignin {
+  code = "email_not_verified";
+}
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   ...authConfig,
@@ -26,6 +37,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const valid = await bcrypt.compare(password, user.password);
         if (!valid) return null;
+
+        if (REQUIRE_EMAIL_VERIFICATION && !user.emailVerified) {
+          throw new EmailNotVerifiedError();
+        }
 
         return { id: user.id, email: user.email, name: user.name };
       },

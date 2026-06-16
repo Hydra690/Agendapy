@@ -14,6 +14,10 @@ export const apiError = {
   unauthenticated: () => NextResponse.json({ error: "No autenticado" }, { status: 401 }),
   noBusiness: () => NextResponse.json({ error: "Sin negocio" }, { status: 404 }),
   server: () => NextResponse.json({ error: "Error interno del servidor" }, { status: 500 }),
+  // 403 de feature paga. `upgrade:true` permite a la UI mostrar el upsell en vez
+  // de un error genérico. `feature` identifica qué se intentó usar.
+  planRequired: (feature: string, message: string) =>
+    NextResponse.json({ error: "Plan requerido", upgrade: true, feature, message }, { status: 403 }),
 };
 
 // Campos del negocio que casi todas las rutas necesitan (id + plan/trial + tz).

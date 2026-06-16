@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import PlanUpsell from "../components/PlanUpsell";
 
 interface Review {
   id: string;
@@ -31,6 +32,7 @@ export default function ReviewsPage() {
   const router = useRouter();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
+  const [locked, setLocked] = useState(false);
   const [actionId, setActionId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -40,8 +42,11 @@ export default function ReviewsPage() {
   useEffect(() => {
     if (status !== "authenticated") return;
     fetch("/api/dashboard/reviews")
-      .then(r => r.json() as Promise<{ reviews: Review[] }>)
-      .then(data => setReviews(data.reviews ?? []))
+      .then(r => {
+        if (r.status === 403) { setLocked(true); return null; }
+        return r.json() as Promise<{ reviews: Review[] }>;
+      })
+      .then(data => { if (data) setReviews(data.reviews ?? []); })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, [status]);
@@ -77,6 +82,11 @@ export default function ReviewsPage() {
 
       {loading ? (
         <div style={{ color: "#4A4A6A", fontSize: "0.9rem" }}>Cargando...</div>
+      ) : locked ? (
+        <PlanUpsell
+          title="Las reseñas son una función del plan PRO"
+          message="Recopilá y moderá los testimonios de tus clientes, y mostralos en tu página pública. Activá el plan PRO para habilitarlas."
+        />
       ) : reviews.length === 0 ? (
         <div style={{ background: "#fff", border: "1.5px solid #e8eaf0", borderRadius: 16, padding: "48px 32px", textAlign: "center" }}>
           <div style={{ fontSize: "2.5rem", marginBottom: 12 }}>⭐</div>

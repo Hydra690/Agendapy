@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import styles from "./landing.module.css";
 
@@ -49,12 +50,12 @@ export default function LandingPage() {
       {/* NAVBAR */}
       <nav className={styles.nav}>
         <div className={styles.navInner}>
-          <a href="/" className={styles.logo}>
+          <Link href="/" className={styles.logo}>
             agenda<span className={styles.logoAccent}>py</span>
-          </a>
+          </Link>
           <div className={styles.navRight}>
-            <a href="/login" className={styles.navLogin}>Iniciar sesión</a>
-            <a href="/register" className={styles.navRegister}>Empezar gratis</a>
+            <Link href="/login" className={styles.navLogin}>Iniciar sesión</Link>
+            <Link href="/register" className={styles.navRegister}>Empezar gratis</Link>
           </div>
         </div>
       </nav>
@@ -71,7 +72,7 @@ export default function LandingPage() {
             vos te enfocás en trabajar.
           </p>
           <div className={styles.heroActions}>
-            <a href="/register" className={styles.btnPrimary}>Empezar gratis →</a>
+            <Link href="/register" className={styles.btnPrimary}>Empezar gratis →</Link>
             <a
               href="/barberia-demo"
               className={styles.btnOutline}
@@ -158,18 +159,18 @@ export default function LandingPage() {
           <p className={styles.ctaSub}>
             Creá tu cuenta gratis y empezá a recibir turnos hoy mismo.
           </p>
-          <a href="/register" className={styles.btnPrimaryLg}>
+          <Link href="/register" className={styles.btnPrimaryLg}>
             Crear cuenta gratis →
-          </a>
+          </Link>
         </div>
       </section>
 
       {/* FOOTER */}
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
-          <a href="/" className={styles.footerLogo}>
+          <Link href="/" className={styles.footerLogo}>
             agenda<span className={styles.logoAccent}>py</span>
-          </a>
+          </Link>
           <p className={styles.footerCopy}>© 2026 Agendapy. Hecho en Paraguay.</p>
         </div>
       </footer>

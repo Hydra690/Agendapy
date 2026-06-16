@@ -4,6 +4,15 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import styles from "./settings.module.css";
+import { usePlan } from "../usePlan";
+
+const TIER_LABEL: Record<string, string> = { FREE: "Gratuito", BASIC: "Básico", PRO: "PRO" };
+
+// Formateo de fecha en helper (no en render directo) para no disparar la regla de
+// funciones impuras en el render de los archivos grandes del dashboard.
+function fmtPlanDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("es-PY", { day: "numeric", month: "long", year: "numeric" });
+}
 
 // ---- Types ----
 
@@ -23,12 +32,16 @@ interface Business {
   cancellationWindowHours: number;
 }
 
+interface Interval {
+  startTime: string;
+  endTime: string;
+}
+
 interface DaySchedule {
   dayOfWeek: string;
   label: string;
   isActive: boolean;
-  startTime: string;
-  endTime: string;
+  intervals: Interval[];   // turno partido: 1+ intervalos por día
 }
 
 interface BlockedDate {
@@ -54,14 +67,16 @@ const CATEGORY_LABEL: Record<string, string> = {
 };
 
 const DEFAULT_SCHEDULE: DaySchedule[] = [
-  { dayOfWeek: "MONDAY",    label: "Lunes",     isActive: false, startTime: "08:00", endTime: "18:00" },
-  { dayOfWeek: "TUESDAY",   label: "Martes",    isActive: false, startTime: "08:00", endTime: "18:00" },
-  { dayOfWeek: "WEDNESDAY", label: "Miércoles", isActive: false, startTime: "08:00", endTime: "18:00" },
-  { dayOfWeek: "THURSDAY",  label: "Jueves",    isActive: false, startTime: "08:00", endTime: "18:00" },
-  { dayOfWeek: "FRIDAY",    label: "Viernes",   isActive: false, startTime: "08:00", endTime: "18:00" },
-  { dayOfWeek: "SATURDAY",  label: "Sábado",    isActive: false, startTime: "08:00", endTime: "13:00" },
-  { dayOfWeek: "SUNDAY",    label: "Domingo",   isActive: false, startTime: "08:00", endTime: "13:00" },
+  { dayOfWeek: "MONDAY",    label: "Lunes",     isActive: false, intervals: [{ startTime: "08:00", endTime: "18:00" }] },
+  { dayOfWeek: "TUESDAY",   label: "Martes",    isActive: false, intervals: [{ startTime: "08:00", endTime: "18:00" }] },
+  { dayOfWeek: "WEDNESDAY", label: "Miércoles", isActive: false, intervals: [{ startTime: "08:00", endTime: "18:00" }] },
+  { dayOfWeek: "THURSDAY",  label: "Jueves",    isActive: false, intervals: [{ startTime: "08:00", endTime: "18:00" }] },
+  { dayOfWeek: "FRIDAY",    label: "Viernes",   isActive: false, intervals: [{ startTime: "08:00", endTime: "18:00" }] },
+  { dayOfWeek: "SATURDAY",  label: "Sábado",    isActive: false, intervals: [{ startTime: "08:00", endTime: "13:00" }] },
+  { dayOfWeek: "SUNDAY",    label: "Domingo",   isActive: false, intervals: [{ startTime: "08:00", endTime: "13:00" }] },
 ];
+
+const DEFAULT_INTERVAL: Interval = { startTime: "08:00", endTime: "18:00" };
 
 // ---- Helpers ----
 
@@ -87,6 +102,7 @@ function formatBlockedDate(isoStr: string): string {
 export default function SettingsPage() {
   const { status: authStatus } = useSession();
   const router = useRouter();
+  const { plan } = usePlan();
 
   const [loading, setLoading] = useState(true);
 
@@ -126,7 +142,7 @@ export default function SettingsPage() {
 
       const bizData = await bizRes.json() as { business: Business };
       const availData = await availRes.json() as {
-        availability: ({ dayOfWeek: string; startTime: string; endTime: string; isActive: boolean } | null)[];
+        availability: { dayOfWeek: string; isActive: boolean; intervals: Interval[] }[];
       };
       const blockedData = await blockedRes.json() as { blockedDates: BlockedDate[] };
 
@@ -144,10 +160,15 @@ export default function SettingsPage() {
         cancellationWindowHours: bizData.business.cancellationWindowHours ?? 2,
       });
 
-      setSchedule(DEFAULT_SCHEDULE.map((def, i) => {
-        const row = availData.availability[i];
+      setSchedule(DEFAULT_SCHEDULE.map((def) => {
+        const row = availData.availability.find(r => r.dayOfWeek === def.dayOfWeek);
         if (!row) return def;
-        return { ...def, isActive: row.isActive, startTime: row.startTime, endTime: row.endTime };
+        return {
+          ...def,
+          isActive: row.isActive,
+          // Un día activo siempre tiene al menos un intervalo; si no, usamos el default.
+          intervals: row.intervals.length > 0 ? row.intervals : def.intervals,
+        };
       }));
 
       setBlockedDates(blockedData.blockedDates ?? []);
@@ -159,6 +180,7 @@ export default function SettingsPage() {
   }, [router]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
     if (authStatus === "authenticated") loadData();
   }, [authStatus, loadData]);
 
@@ -195,9 +217,23 @@ export default function SettingsPage() {
     setSchedSaved(false);
 
     for (const day of schedule) {
-      if (day.isActive && day.startTime >= day.endTime) {
-        setSchedError(`${day.label}: la hora de inicio debe ser anterior al cierre.`);
+      if (!day.isActive) continue;
+      if (day.intervals.length === 0) {
+        setSchedError(`${day.label}: agregá al menos un intervalo o desactivá el día.`);
         return;
+      }
+      for (const iv of day.intervals) {
+        if (iv.startTime >= iv.endTime) {
+          setSchedError(`${day.label}: la hora de inicio debe ser anterior al cierre.`);
+          return;
+        }
+      }
+      const sorted = [...day.intervals].sort((a, b) => a.startTime.localeCompare(b.startTime));
+      for (let k = 1; k < sorted.length; k++) {
+        if (sorted[k].startTime < sorted[k - 1].endTime) {
+          setSchedError(`${day.label}: los intervalos no pueden solaparse.`);
+          return;
+        }
       }
     }
 
@@ -206,7 +242,9 @@ export default function SettingsPage() {
       const res = await fetch("/api/dashboard/availability", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ schedule }),
+        body: JSON.stringify({
+          schedule: schedule.map(d => ({ dayOfWeek: d.dayOfWeek, isActive: d.isActive, intervals: d.intervals })),
+        }),
       });
       if (!res.ok) { setSchedError("Error al guardar los horarios."); return; }
       setSchedSaved(true);
@@ -258,8 +296,33 @@ export default function SettingsPage() {
     }
   }
 
-  function updateDay(index: number, patch: Partial<DaySchedule>) {
-    setSchedule(prev => prev.map((d, i) => i === index ? { ...d, ...patch } : d));
+  function toggleDay(index: number, active: boolean) {
+    setSchedule(prev => prev.map((d, i) => {
+      if (i !== index) return d;
+      // Al activar un día sin intervalos, le damos uno por defecto.
+      if (active && d.intervals.length === 0) return { ...d, isActive: true, intervals: [{ ...DEFAULT_INTERVAL }] };
+      return { ...d, isActive: active };
+    }));
+  }
+
+  function updateInterval(dayIndex: number, ivIndex: number, patch: Partial<Interval>) {
+    setSchedule(prev => prev.map((d, i) =>
+      i === dayIndex
+        ? { ...d, intervals: d.intervals.map((iv, j) => (j === ivIndex ? { ...iv, ...patch } : iv)) }
+        : d
+    ));
+  }
+
+  function addInterval(dayIndex: number) {
+    setSchedule(prev => prev.map((d, i) =>
+      i === dayIndex ? { ...d, intervals: [...d.intervals, { startTime: "14:00", endTime: "18:00" }] } : d
+    ));
+  }
+
+  function removeInterval(dayIndex: number, ivIndex: number) {
+    setSchedule(prev => prev.map((d, i) =>
+      i === dayIndex ? { ...d, intervals: d.intervals.filter((_, j) => j !== ivIndex) } : d
+    ));
   }
 
   if (loading) {
@@ -291,6 +354,41 @@ export default function SettingsPage() {
           </p>
         </div>
       </div>
+
+      {/* ---- PLAN ACTUAL ---- */}
+      {plan && (
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>Tu plan</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span style={{ fontWeight: 800, fontSize: "1.05rem", color: "#1A1A2E" }}>
+              Plan {TIER_LABEL[plan.tier] ?? plan.tier}
+            </span>
+            {plan.onTrial && plan.trialEndsAt && (
+              <span style={{ background: "#e8f9f1", color: "#0f7a55", borderRadius: 99, padding: "3px 12px", fontSize: "0.78rem", fontWeight: 700 }}>
+                En prueba · vence el {fmtPlanDate(plan.trialEndsAt)}
+              </span>
+            )}
+            {!plan.onTrial && plan.tier !== "FREE" && plan.planExpiry && (
+              <span style={{ background: "#e8f9f1", color: "#0f7a55", borderRadius: 99, padding: "3px 12px", fontSize: "0.78rem", fontWeight: 700 }}>
+                Activo hasta el {fmtPlanDate(plan.planExpiry)}
+              </span>
+            )}
+            {!plan.onTrial && plan.tier === "FREE" && (
+              <span style={{ background: "#fff8e1", color: "#92400e", borderRadius: 99, padding: "3px 12px", fontSize: "0.78rem", fontWeight: 700 }}>
+                Funciones premium desactivadas
+              </span>
+            )}
+          </div>
+          {plan.tier === "FREE" && (
+            <p className={styles.sectionSub} style={{ marginTop: 10, marginBottom: 0 }}>
+              Activá un plan para recordatorios automáticos por WhatsApp, export de CSV, métricas y más.{" "}
+              <a href="mailto:hola@agendapy.com?subject=Quiero contratar el plan" style={{ color: "#f59e0b", fontWeight: 700, textDecoration: "none" }}>
+                Contratar plan
+              </a>
+            </p>
+          )}
+        </div>
+      )}
 
       {/* ---- DATOS DEL NEGOCIO ---- */}
       <div className={styles.section}>
@@ -464,7 +562,7 @@ export default function SettingsPage() {
                 <input
                   type="checkbox"
                   checked={day.isActive}
-                  onChange={e => updateDay(i, { isActive: e.target.checked })}
+                  onChange={e => toggleDay(i, e.target.checked)}
                   className={styles.scheduleCheckbox}
                 />
                 <span className={`${styles.scheduleToggleTrack} ${day.isActive ? styles.scheduleToggleOn : ""}`} />
@@ -473,20 +571,41 @@ export default function SettingsPage() {
               <span className={styles.scheduleDayLabel}>{day.label}</span>
 
               {day.isActive ? (
-                <div className={styles.scheduleTimePicker}>
-                  <input
-                    type="time"
-                    value={day.startTime}
-                    onChange={e => updateDay(i, { startTime: e.target.value })}
-                    className={styles.timeInput}
-                  />
-                  <span className={styles.timeSep}>–</span>
-                  <input
-                    type="time"
-                    value={day.endTime}
-                    onChange={e => updateDay(i, { endTime: e.target.value })}
-                    className={styles.timeInput}
-                  />
+                <div className={styles.scheduleTimePicker} style={{ flexDirection: "column", alignItems: "flex-start", gap: 8 }}>
+                  {day.intervals.map((iv, j) => (
+                    <div key={j} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <input
+                        type="time"
+                        value={iv.startTime}
+                        onChange={e => updateInterval(i, j, { startTime: e.target.value })}
+                        className={styles.timeInput}
+                      />
+                      <span className={styles.timeSep}>–</span>
+                      <input
+                        type="time"
+                        value={iv.endTime}
+                        onChange={e => updateInterval(i, j, { endTime: e.target.value })}
+                        className={styles.timeInput}
+                      />
+                      {day.intervals.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeInterval(i, j)}
+                          title="Quitar intervalo"
+                          style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "1rem", padding: "0 4px" }}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => addInterval(i)}
+                    style={{ background: "none", border: "none", color: "#00c48c", fontWeight: 600, fontSize: "0.8rem", cursor: "pointer", padding: 0 }}
+                  >
+                    + Agregar intervalo (turno partido)
+                  </button>
                 </div>
               ) : (
                 <span className={styles.scheduleClosed}>Cerrado</span>

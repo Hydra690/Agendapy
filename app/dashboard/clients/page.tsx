@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { usePlan } from "../usePlan";
 
 interface Client {
   id: string;
@@ -25,6 +26,7 @@ function formatDate(isoStr: string): string {
 export default function ClientsPage() {
   const { status } = useSession();
   const router = useRouter();
+  const { can } = usePlan();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -66,6 +68,14 @@ export default function ClientsPage() {
         </div>
       ) : (
         <>
+          {!can("clientsCrm") && (
+            <div style={{
+              background: "#fff8e1", border: "1.5px solid #ffe082", borderRadius: 12,
+              padding: "10px 16px", marginBottom: 14, fontSize: "0.82rem", color: "#92400e",
+            }}>
+              La ficha y el historial de cada cliente son una función del plan. Activá un plan para acceder al detalle.
+            </div>
+          )}
           <input
             type="text"
             value={search}

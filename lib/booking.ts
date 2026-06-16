@@ -20,19 +20,30 @@ export function dayOfWeekUTC(date: Date): DayOfWeek {
   return DAY_BY_INDEX[date.getUTCDay()];
 }
 
-/** Genera los horarios de inicio posibles entre [startTime, endTime) en pasos de `duration`. */
-export function generateSlots(startTime: string, endTime: string, durationMinutes: number): string[] {
-  if (durationMinutes <= 0) return [];
+/**
+ * Genera horarios de inicio en [startTime, endTime) avanzando `stepMinutes` por paso.
+ * Un candidato se incluye solo si un bloque de `fitMinutes` entra antes de `endTime`
+ * (por defecto fit = step). Separar paso y fit permite buffers: el paso es
+ * duración+buffer (deja el colchón entre turnos) pero lo que debe entrar antes del
+ * cierre es solo la duración del servicio (el buffer puede caer tras el cierre).
+ */
+export function generateSlots(
+  startTime: string,
+  endTime: string,
+  stepMinutes: number,
+  fitMinutes: number = stepMinutes
+): string[] {
+  if (stepMinutes <= 0 || fitMinutes <= 0) return [];
   const slots: string[] = [];
   const [startH, startM] = startTime.split(":").map(Number);
   const [endH, endM] = endTime.split(":").map(Number);
   let current = startH * 60 + startM;
   const end = endH * 60 + endM;
-  while (current + durationMinutes <= end) {
+  while (current + fitMinutes <= end) {
     const h = Math.floor(current / 60).toString().padStart(2, "0");
     const m = (current % 60).toString().padStart(2, "0");
     slots.push(`${h}:${m}`);
-    current += durationMinutes;
+    current += stepMinutes;
   }
   return slots;
 }
@@ -47,6 +58,8 @@ export function rangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd
 
 export interface BookedRange {
   startTime: string;
+  // Fin OCUPADO del slot: fin del turno + buffer del servicio reservado. El caller
+  // ya suma el buffer; el motor solo compara rangos.
   endTime: string;
 }
 
@@ -65,17 +78,68 @@ export function canCancelNow(appointment: Date, windowHours: number, now: Date =
 }
 
 /**
- * Slots libres: de todos los posibles, descarta los que se pisan con alguna
- * reserva existente (considerando la duración real de cada una, no solo el inicio).
+ * Slots libres a partir de UNO O VARIOS bloques de atención del día (soporta turno
+ * partido / pausa de almuerzo). Para cada bloque genera candidatos cada
+ * duración+buffer y descarta los que se pisan con una reserva existente.
+ *
+ * `existing[].endTime` debe venir ya extendido con el buffer del servicio reservado
+ * (fin ocupado). El candidato ocupa [slot, slot+duración+buffer): así el buffer se
+ * respeta de ambos lados (entre el turno previo y el nuevo, y tras el nuevo).
  */
 export function availableSlots(
-  open: { startTime: string; endTime: string },
+  blocks: Array<{ startTime: string; endTime: string }>,
   durationMinutes: number,
+  bufferMinutes: number,
   existing: BookedRange[]
 ): string[] {
-  const all = generateSlots(open.startTime, open.endTime, durationMinutes);
-  return all.filter((slot) => {
-    const slotEnd = addMinutes(slot, durationMinutes);
-    return !existing.some((b) => rangesOverlap(slot, slotEnd, b.startTime, b.endTime));
-  });
+  if (durationMinutes <= 0) return [];
+  const buffer = Math.max(0, bufferMinutes);
+  const step = durationMinutes + buffer;
+  const out: string[] = [];
+  for (const block of blocks) {
+    const candidates = generateSlots(block.startTime, block.endTime, step, durationMinutes);
+    for (const slot of candidates) {
+      const occupiedEnd = addMinutes(slot, durationMinutes + buffer);
+      const conflicts = existing.some((b) => rangesOverlap(slot, occupiedEnd, b.startTime, b.endTime));
+      if (!conflicts) out.push(slot);
+    }
+  }
+  // Ordenar y deduplicar por si dos bloques generan el mismo horario.
+  return [...new Set(out)].sort();
+}
+
+/** Une (dedup + ordena) los slots libres de varios recursos/profesionales. Un slot
+ *  se ofrece si AL MENOS UNO está libre en ese horario. */
+export function unionSlots(slotLists: string[][]): string[] {
+  const set = new Set<string>();
+  for (const list of slotLists) for (const s of list) set.add(s);
+  return [...set].sort();
+}
+
+/** ¿Este profesional puede hacer el servicio? Sin servicios asignados = hace todos. */
+export function staffCanDoService(staffServiceIds: string[], serviceId: string): boolean {
+  return staffServiceIds.length === 0 || staffServiceIds.includes(serviceId);
+}
+
+/**
+ * Elige el PRIMER profesional (en el orden dado) que tiene `slotStart` libre, dado
+ * sus bloques de disponibilidad y sus rangos ocupados (fin ya extendido con buffer).
+ * Devuelve su id, o null si ninguno está libre. El orden de `candidateIds` define la
+ * preferencia (p.ej. por antigüedad) para la asignación "cualquiera disponible".
+ */
+export function pickAvailableStaff(
+  candidateIds: string[],
+  blocksByStaff: Map<string, Array<{ startTime: string; endTime: string }>>,
+  occupiedByStaff: Map<string, BookedRange[]>,
+  slotStart: string,
+  durationMinutes: number,
+  bufferMinutes: number
+): string | null {
+  for (const id of candidateIds) {
+    const free = availableSlots(
+      blocksByStaff.get(id) ?? [], durationMinutes, bufferMinutes, occupiedByStaff.get(id) ?? []
+    ).includes(slotStart);
+    if (free) return id;
+  }
+  return null;
 }

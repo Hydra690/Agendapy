@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import styles from "./dashboard.module.css";
@@ -25,6 +26,15 @@ function hasAccess(business: Business): boolean {
   if (business.plan !== "FREE" && business.planExpiry && new Date(business.planExpiry) > now) return true;
   if (business.trialEndsAt && new Date(business.trialEndsAt) > now) return true;
   return false;
+}
+
+// Días restantes de trial, o null si no hay trial vigente. (La lógica de fecha vive
+// en un helper para no llamar funciones impuras directamente en el render.)
+function trialDaysLeft(business: Business): number | null {
+  if (!business.trialEndsAt) return null;
+  const ms = new Date(business.trialEndsAt).getTime() - Date.now();
+  if (ms <= 0) return null;
+  return Math.ceil(ms / 86_400_000);
 }
 
 interface BookingClient { name: string; whatsapp: string | null; }
@@ -163,6 +173,7 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
     if (authStatus === "authenticated") loadMonthDates(calYear, calMonth);
   }, [authStatus, calYear, calMonth, loadMonthDates]);
 
@@ -202,6 +213,7 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
     if (authStatus === "authenticated" && selectedDate) loadBookings(selectedDate);
   }, [authStatus, selectedDate, loadBookings]);
 
@@ -242,9 +254,8 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (viewMode === "week" && authStatus === "authenticated") {
-      loadWeek(getWeekStart(selectedDate));
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
+    if (viewMode === "week" && authStatus === "authenticated") loadWeek(getWeekStart(selectedDate));
   }, [viewMode, selectedDate, authStatus, loadWeek]);
 
   function prevMonth() {
@@ -327,6 +338,24 @@ export default function DashboardPage() {
               Ver página ↗
             </a>
           </div>
+        </div>
+      )}
+
+      {business && trialDaysLeft(business) !== null && (
+        <div style={{
+          background: "#e8f9f1",
+          border: "1.5px solid #9be3c4",
+          borderRadius: 12,
+          padding: "12px 18px",
+          marginBottom: 16,
+          fontSize: "0.86rem",
+          color: "#0f7a55",
+        }}>
+          <span style={{ fontWeight: 700 }}>Estás en período de prueba</span>
+          <span style={{ marginLeft: 6 }}>
+            — todas las funciones PRO están activas. Te{" "}
+            {trialDaysLeft(business) === 1 ? "queda 1 día" : `quedan ${trialDaysLeft(business)} días`}.
+          </span>
         </div>
       )}
 
@@ -511,7 +540,7 @@ export default function DashboardPage() {
             <div style={{ background: "#fff", border: "1.5px solid #ffe082", borderRadius: 14, padding: "14px 18px" }}>
               <div style={{ fontSize: "0.76rem", color: "#b45309", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: "0.05em" }}>Sin reservar en 30+ días</div>
               <div style={{ fontSize: "1.35rem", fontWeight: 800, color: "#b45309" }}>{stats.lostClients}</div>
-              <a href="/dashboard/clients" style={{ fontSize: "0.78rem", color: "#b45309", marginTop: 2, display: "block" }}>Ver clientes →</a>
+              <Link href="/dashboard/clients" style={{ fontSize: "0.78rem", color: "#b45309", marginTop: 2, display: "block" }}>Ver clientes →</Link>
             </div>
           )}
         </div>

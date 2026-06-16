@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
@@ -20,6 +21,8 @@ function Verifier() {
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
 
   useEffect(() => {
+    // setState síncrono intencional: marca error inmediato si falta el token.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!token) { setState("error"); return; }
     (async () => {
       try {
@@ -40,13 +43,13 @@ function Verifier() {
     return (
       <>
         <p style={S.msg}>✅ ¡Tu email fue verificado!</p>
-        <a href="/login" style={S.link}>Iniciar sesión →</a>
+        <Link href="/login" style={S.link}>Iniciar sesión →</Link>
       </>
     );
   return (
     <>
       <p style={S.msg}>❌ El enlace es inválido o expiró.</p>
-      <a href="/login" style={S.link}>Ir a iniciar sesión</a>
+      <Link href="/login" style={S.link}>Ir a iniciar sesión</Link>
     </>
   );
 }

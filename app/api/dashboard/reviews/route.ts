@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
-import { requireBusiness } from "@/lib/api-auth";
+import { requireBusiness, apiError } from "@/lib/api-auth";
+import { canUseFeature } from "@/lib/plan";
+
+const REVIEWS_UPSELL = "El módulo de reseñas es una función del plan PRO. Activá PRO para gestionar reseñas.";
 
 export async function GET(request: NextRequest) {
   try {
     const ctx = await requireBusiness();
     if ("response" in ctx) return ctx.response;
     const { business } = ctx;
+
+    if (!canUseFeature(business, "reviews")) {
+      return apiError.planRequired("reviews", REVIEWS_UPSELL);
+    }
 
     const sp = new URL(request.url).searchParams;
     const limit = Math.min(Math.max(parseInt(sp.get("limit") ?? "200", 10) || 200, 1), 500);
@@ -35,6 +42,10 @@ export async function PATCH(request: NextRequest) {
     const ctx = await requireBusiness();
     if ("response" in ctx) return ctx.response;
     const { business } = ctx;
+
+    if (!canUseFeature(business, "reviews")) {
+      return apiError.planRequired("reviews", REVIEWS_UPSELL);
+    }
 
     const body = await request.json() as { id: string; action: "APPROVE" | "REJECT" };
 

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- archivo de config CommonJS que Prisma carga con require */
 require("dotenv").config();
 const { defineConfig } = require("prisma/config");
 

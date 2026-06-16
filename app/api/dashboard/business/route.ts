@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
 import { BusinessUpdateSchema, formatZodErrors } from "@/lib/validations";
 import { requireUserId } from "@/lib/api-auth";
+import { planSummary } from "@/lib/plan";
 
 const BUSINESS_SELECT = {
   id: true,
@@ -46,7 +47,9 @@ export async function GET() {
       return NextResponse.json({ error: "Sin negocio" }, { status: 404 });
     }
 
-    return NextResponse.json({ business });
+    // Resumen del plan (tier efectivo, features, cuota) para que la UI gatee sin
+    // re-derivar la lógica de negocio.
+    return NextResponse.json({ business, plan: planSummary(business) });
   } catch (error) {
     logError("[dashboard/business] GET", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });
@@ -107,7 +110,7 @@ export async function PATCH(req: Request) {
       select: BUSINESS_SELECT,
     });
 
-    return NextResponse.json({ business: updated });
+    return NextResponse.json({ business: updated, plan: updated ? planSummary(updated) : null });
   } catch (error) {
     logError("[dashboard/business] PATCH", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });

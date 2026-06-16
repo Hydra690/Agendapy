@@ -9,6 +9,7 @@ interface Service {
   id: string;
   name: string;
   duration: number;
+  bufferMinutes: number;
   price: number | null;
   description: string | null;
   isActive: boolean;
@@ -17,11 +18,12 @@ interface Service {
 interface FormState {
   name: string;
   duration: string;
+  buffer: string;
   price: string;
   description: string;
 }
 
-const EMPTY_FORM: FormState = { name: "", duration: "", price: "", description: "" };
+const EMPTY_FORM: FormState = { name: "", duration: "", buffer: "", price: "", description: "" };
 
 function formatPrice(price: number | null): string {
   if (price === null) return "A consultar";
@@ -56,6 +58,7 @@ export default function ServicesPage() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch-on-mount
     if (authStatus === "authenticated") loadServices();
   }, [authStatus, loadServices]);
 
@@ -71,6 +74,7 @@ export default function ServicesPage() {
     setForm({
       name: s.name,
       duration: String(s.duration),
+      buffer: s.bufferMinutes ? String(s.bufferMinutes) : "",
       price: s.price !== null ? String(s.price) : "",
       description: s.description ?? "",
     });
@@ -101,13 +105,15 @@ export default function ServicesPage() {
         body: JSON.stringify({
           name: form.name.trim(),
           duration: Number(form.duration),
+          bufferMinutes: form.buffer !== "" ? Number(form.buffer) : 0,
           price: form.price !== "" ? Number(form.price) : null,
           description: form.description.trim() || null,
         }),
       });
 
-      const data = await res.json() as { error?: string };
-      if (!res.ok) { setFormError(data.error ?? "Error al guardar."); return; }
+      const data = await res.json() as { error?: string; message?: string; upgrade?: boolean };
+      // En 403 de feature/cuota el texto amigable viene en `message` (upgrade:true).
+      if (!res.ok) { setFormError(data.message ?? data.error ?? "Error al guardar."); return; }
 
       await loadServices();
       closeForm();
@@ -202,6 +208,18 @@ export default function ServicesPage() {
                 placeholder="30"
                 value={form.duration}
                 onChange={e => setForm(f => ({ ...f, duration: e.target.value }))}
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label className={styles.formLabel}>Buffer (min) — opcional</label>
+              <input
+                className={styles.formInput}
+                type="number"
+                min="0"
+                step="5"
+                placeholder="Colchón tras el turno (0)"
+                value={form.buffer}
+                onChange={e => setForm(f => ({ ...f, buffer: e.target.value }))}
               />
             </div>
             <div className={styles.formGroup}>

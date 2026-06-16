@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { canCancelNow, cancellationDeadline } from "@/lib/booking";
 import { zonedToUtc } from "@/lib/timezone";
@@ -57,9 +58,9 @@ function Notice({ emoji, title, text }: { emoji: string; title: string; text: st
         <div style={{ fontSize: "3rem", marginBottom: 12 }}>{emoji}</div>
         <h1 style={{ fontSize: "1.25rem", fontWeight: 700, color: "#1A1A2E", marginBottom: 8 }}>{title}</h1>
         <p style={{ color: "#4A4A6A", fontSize: "0.95rem", lineHeight: 1.6 }}>{text}</p>
-        <a href="/" style={{ display: "inline-block", marginTop: 20, color: "#00C48C", fontWeight: 600, textDecoration: "none", fontSize: "0.9rem" }}>
+        <Link href="/" style={{ display: "inline-block", marginTop: 20, color: "#00C48C", fontWeight: 600, textDecoration: "none", fontSize: "0.9rem" }}>
           Ir a Agendapy
-        </a>
+        </Link>
       </div>
     </div>
   );

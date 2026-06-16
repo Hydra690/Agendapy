@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { ServiceCreateSchema, formatZodErrors } from "@/lib/validations";
-import { requireBusiness } from "@/lib/api-auth";
+import { requireBusiness, apiError } from "@/lib/api-auth";
+import { serviceLimit } from "@/lib/plan";
 
 export async function GET() {
   const ctx = await requireBusiness();
@@ -34,13 +35,28 @@ export async function POST(req: Request) {
       { status: 400 }
     );
   }
-  const { name, duration, price, description } = parsed.data;
+  const { name, duration, bufferMinutes, price, description } = parsed.data;
+
+  // Cuota de servicios del tier (FREE = 2; pagos = ilimitado). Cuenta activos.
+  const limit = serviceLimit(business);
+  if (limit !== null) {
+    const active = await prisma.service.count({
+      where: { businessId: business.id, isActive: true },
+    });
+    if (active >= limit) {
+      return apiError.planRequired(
+        "services",
+        `El plan gratuito permite hasta ${limit} servicios. Activá un plan para agregar más.`
+      );
+    }
+  }
 
   const service = await prisma.service.create({
     data: {
       businessId: business.id,
       name,
       duration,
+      bufferMinutes: bufferMinutes ?? 0,
       price: price ?? null,
       description: description ?? null,
     },

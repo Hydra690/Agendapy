@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
@@ -55,7 +56,7 @@ export default function ForgotPasswordPage() {
             <div style={S.ok}>
               Si el email está registrado, te llegará un enlace para crear una nueva contraseña. Revisá tu bandeja.
             </div>
-            <div style={S.footer}><a href="/login" style={S.link}>← Volver a iniciar sesión</a></div>
+            <div style={S.footer}><Link href="/login" style={S.link}>← Volver a iniciar sesión</Link></div>
           </>
         ) : (
           <form onSubmit={handleSubmit} noValidate>
@@ -64,7 +65,7 @@ export default function ForgotPasswordPage() {
             <button type="submit" style={{ ...S.btn, ...((loading || !email.includes("@")) ? S.btnDisabled : {}) }} disabled={loading || !email.includes("@")}>
               {loading ? "Enviando..." : "Enviar enlace"}
             </button>
-            <div style={S.footer}><a href="/login" style={S.link}>← Volver</a></div>
+            <div style={S.footer}><Link href="/login" style={S.link}>← Volver</Link></div>
           </form>
         )}
       </div>

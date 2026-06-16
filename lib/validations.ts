@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const BookingSchema = z.object({
   serviceId: z.string().min(1, "serviceId es requerido"),
+  // Profesional elegido (opcional). Si falta, el sistema asigna uno libre ("cualquiera").
+  staffId: z.string().min(1).optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date debe tener formato YYYY-MM-DD"),
   startTime: z.string().regex(/^\d{2}:\d{2}$/, "startTime debe tener formato HH:mm"),
   clientName: z.string().min(2, "El nombre debe tener al menos 2 caracteres").max(100).trim(),
@@ -58,9 +60,13 @@ export const BusinessUpdateSchema = z.object({
 // Servicios del dashboard
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+// Buffer (colchón tras el turno) en minutos. 0–120, opcional.
+const bufferMinutes = z.coerce.number().int().min(0, "El buffer no puede ser negativo").max(120, "Máximo 120 minutos").optional();
+
 export const ServiceCreateSchema = z.object({
   name: z.string().trim().min(1, "El nombre es requerido").max(120),
   duration: z.coerce.number().int("La duración debe ser un número entero").min(5, "Mínimo 5 minutos").max(1440),
+  bufferMinutes,
   price: z.coerce.number().int().min(0).max(1_000_000_000).nullish(),
   description: z.string().trim().max(500).optional().transform((v) => (v ? v : undefined)),
 });
@@ -68,27 +74,70 @@ export const ServiceCreateSchema = z.object({
 export const ServiceUpdateSchema = z.object({
   name: z.string().trim().min(1).max(120).optional(),
   duration: z.coerce.number().int().min(5).max(1440).optional(),
+  bufferMinutes,
   price: z.coerce.number().int().min(0).max(1_000_000_000).nullish(),
   description: z.string().trim().max(500).nullish(),
   isActive: z.boolean().optional(),
 });
 
-// Disponibilidad semanal (PUT)
+// Staff (profesionales del negocio)
+export const StaffCreateSchema = z.object({
+  name: z.string().trim().min(2, "El nombre debe tener al menos 2 caracteres").max(120),
+  role: z.string().trim().max(80).optional().transform((v) => (v ? v : undefined)),
+  phone: z.string().trim().max(30).optional().transform((v) => (v ? v : undefined)),
+  // IDs de servicios que puede hacer (relación StaffServices). Vacío = todos.
+  serviceIds: z.array(z.string().min(1)).max(100).optional(),
+});
+
+export const StaffUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(120).optional(),
+  role: z.string().trim().max(80).nullish(),
+  phone: z.string().trim().max(30).nullish(),
+  isActive: z.boolean().optional(),
+  serviceIds: z.array(z.string().min(1)).max(100).optional(),
+});
+
+// Disponibilidad semanal (PUT). Cada día puede tener MÚLTIPLES intervalos
+// (turno partido / pausa de almuerzo).
 const DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"] as const;
 
+const IntervalSchema = z
+  .object({
+    startTime: z.string().regex(HHMM, "Hora inválida (HH:mm)"),
+    endTime: z.string().regex(HHMM, "Hora inválida (HH:mm)"),
+  })
+  .refine((i) => i.startTime < i.endTime, {
+    message: "La hora de inicio debe ser anterior al cierre",
+    path: ["startTime"],
+  });
+
+/** ¿Algún par de intervalos se solapa? (comparación lexicográfica de "HH:mm"). */
+function intervalsOverlap(intervals: { startTime: string; endTime: string }[]): boolean {
+  const sorted = [...intervals].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].startTime < sorted[i - 1].endTime) return true;
+  }
+  return false;
+}
+
 export const AvailabilityPutSchema = z.object({
+  // Si viene, el horario es de ESE profesional; si no, es el horario del negocio.
+  staffId: z.string().min(1).optional(),
   schedule: z
     .array(
       z
         .object({
           dayOfWeek: z.enum(DAYS),
-          startTime: z.string().regex(HHMM, "Hora inválida (HH:mm)"),
-          endTime: z.string().regex(HHMM, "Hora inválida (HH:mm)"),
           isActive: z.boolean(),
+          intervals: z.array(IntervalSchema).max(6),
         })
-        .refine((d) => !d.isActive || d.startTime < d.endTime, {
-          message: "La hora de inicio debe ser anterior al cierre",
-          path: ["startTime"],
+        .refine((d) => !d.isActive || d.intervals.length >= 1, {
+          message: "Un día activo necesita al menos un intervalo",
+          path: ["intervals"],
+        })
+        .refine((d) => !intervalsOverlap(d.intervals), {
+          message: "Los intervalos del día no pueden solaparse",
+          path: ["intervals"],
         })
     )
     .min(1)

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
-import { hasAccess } from "@/lib/plan";
-import { requireBusiness } from "@/lib/api-auth";
+import { canUseFeature } from "@/lib/plan";
+import { requireBusiness, apiError } from "@/lib/api-auth";
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Pendiente",
@@ -23,11 +23,8 @@ export async function GET(request: NextRequest) {
     const year = parseInt(searchParams.get("year") ?? String(now.getFullYear()));
     const month = parseInt(searchParams.get("month") ?? String(now.getMonth() + 1));
 
-    if (!hasAccess(business)) {
-      return NextResponse.json(
-        { error: "Plan requerido", message: "El export de CSV es una función del plan. Activá tu plan para acceder." },
-        { status: 403 }
-      );
+    if (!canUseFeature(business, "export")) {
+      return apiError.planRequired("export", "El export de CSV es una función del plan. Activá tu plan para acceder.");
     }
 
     const startDate = new Date(Date.UTC(year, month - 1, 1));

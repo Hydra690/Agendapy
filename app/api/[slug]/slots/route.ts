@@ -2,9 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SlotsQuerySchema, formatZodErrors } from "@/lib/validations";
 import { logError } from "@/lib/logger";
-import { parseDateUTC } from "@/lib/date";
+import { parseDateUTC, addMinutes } from "@/lib/date";
 import { todayInTz } from "@/lib/timezone";
-import { availableSlots, dayOfWeekUTC } from "@/lib/booking";
+import { availableSlots, dayOfWeekUTC, unionSlots, staffCanDoService } from "@/lib/booking";
 
 export async function GET(
   request: NextRequest,
@@ -72,39 +72,72 @@ export async function GET(
       );
     }
 
-    // Día de la semana (UTC: la fecha es un día calendario)
-    const availability = await prisma.availability.findFirst({
-      where: {
-        businessId: business.id,
-        dayOfWeek: dayOfWeekUTC(date),
-        isActive: true,
-        staffId: null,
-      },
+    // Día de la semana (UTC: la fecha es un día calendario).
+    const dow = dayOfWeekUTC(date);
+    const staffParam = searchParams.get("staffId") ?? undefined;
+
+    // Profesionales activos. Si no hay, el negocio es un recurso único (igual que antes).
+    const activeStaff = await prisma.staff.findMany({
+      where: { businessId: business.id, isActive: true },
+      select: { id: true, services: { select: { id: true } } },
     });
-    if (!availability) {
-      return NextResponse.json({
-        available: false,
-        reason: "El negocio no atiende ese día",
-        slots: [],
+
+    let slots: string[];
+
+    if (activeStaff.length === 0) {
+      // ---- Recurso único (sin profesionales cargados): comportamiento original ----
+      const blocks = await prisma.availability.findMany({
+        where: { businessId: business.id, dayOfWeek: dow, isActive: true, staffId: null },
+        select: { startTime: true, endTime: true },
       });
+      if (blocks.length === 0) {
+        return NextResponse.json({ available: false, reason: "El negocio no atiende ese día", slots: [] });
+      }
+      // El "fin ocupado" incluye el buffer del servicio reservado.
+      const existing = await prisma.booking.findMany({
+        where: { businessId: business.id, date, status: { in: ["PENDING", "CONFIRMED"] } },
+        select: { startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
+      });
+      const occupied = existing.map(b => ({ startTime: b.startTime, endTime: addMinutes(b.endTime, b.service.bufferMinutes) }));
+      slots = availableSlots(blocks, service.duration, service.bufferMinutes, occupied);
+    } else {
+      // ---- Multi-profesional: un slot se ofrece si ≥1 profesional elegible está libre ----
+      let target = activeStaff.filter(s => staffCanDoService(s.services.map(x => x.id), service.id));
+      if (staffParam) target = target.filter(s => s.id === staffParam);
+      if (target.length === 0) {
+        return NextResponse.json({
+          available: false,
+          reason: staffParam ? "Ese profesional no atiende este servicio" : "Ningún profesional ofrece este servicio",
+          slots: [],
+        });
+      }
+      const ids = target.map(s => s.id);
+      const [availRows, bookingRows] = await Promise.all([
+        prisma.availability.findMany({
+          where: { businessId: business.id, dayOfWeek: dow, isActive: true, staffId: { in: ids } },
+          select: { staffId: true, startTime: true, endTime: true },
+        }),
+        prisma.booking.findMany({
+          where: { businessId: business.id, date, status: { in: ["PENDING", "CONFIRMED"] }, staffId: { in: ids } },
+          select: { staffId: true, startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
+        }),
+      ]);
+      const blocksByStaff = new Map<string, { startTime: string; endTime: string }[]>();
+      for (const r of availRows) {
+        const list = blocksByStaff.get(r.staffId!) ?? [];
+        list.push({ startTime: r.startTime, endTime: r.endTime });
+        blocksByStaff.set(r.staffId!, list);
+      }
+      const occByStaff = new Map<string, { startTime: string; endTime: string }[]>();
+      for (const b of bookingRows) {
+        const list = occByStaff.get(b.staffId!) ?? [];
+        list.push({ startTime: b.startTime, endTime: addMinutes(b.endTime, b.service.bufferMinutes) });
+        occByStaff.set(b.staffId!, list);
+      }
+      slots = unionSlots(ids.map(sid =>
+        availableSlots(blocksByStaff.get(sid) ?? [], service.duration, service.bufferMinutes, occByStaff.get(sid) ?? [])
+      ));
     }
-
-    // Reservas ocupadas para esa fecha (con su rango completo, no solo el inicio:
-    // un servicio de otra duración puede pisar varios slots de este servicio).
-    const existingBookings = await prisma.booking.findMany({
-      where: {
-        businessId: business.id,
-        date,
-        status: { in: ["PENDING", "CONFIRMED"] },
-      },
-      select: { startTime: true, endTime: true },
-    });
-
-    const slots = availableSlots(
-      { startTime: availability.startTime, endTime: availability.endTime },
-      service.duration,
-      existingBookings
-    );
 
     return NextResponse.json(
       {

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
-import { requireBusiness } from "@/lib/api-auth";
+import { requireBusiness, apiError } from "@/lib/api-auth";
+import { canUseFeature } from "@/lib/plan";
+
+const CRM_UPSELL = "El detalle e historial de clientes es una función del plan. Activá un plan para acceder.";
 
 export async function GET(
   _request: NextRequest,
@@ -11,6 +14,10 @@ export async function GET(
     const ctx = await requireBusiness();
     if ("response" in ctx) return ctx.response;
     const { business } = ctx;
+
+    if (!canUseFeature(business, "clientsCrm")) {
+      return apiError.planRequired("clientsCrm", CRM_UPSELL);
+    }
 
     const { id } = await params;
 
@@ -57,6 +64,10 @@ export async function PATCH(
     const ctx = await requireBusiness();
     if ("response" in ctx) return ctx.response;
     const { business } = ctx;
+
+    if (!canUseFeature(business, "clientsCrm")) {
+      return apiError.planRequired("clientsCrm", CRM_UPSELL);
+    }
 
     const { id } = await params;
     const body = await request.json() as { notes?: string };

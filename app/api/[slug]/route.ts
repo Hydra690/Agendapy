@@ -22,6 +22,11 @@ export async function GET(
           select: { dayOfWeek: true, startTime: true, endTime: true },
           orderBy: { dayOfWeek: "asc" },
         },
+        staff: {
+          where: { isActive: true },
+          select: { id: true, name: true, role: true, services: { select: { id: true } } },
+          orderBy: { createdAt: "asc" },
+        },
         reviews: {
           where: { status: "APPROVED" },
           select: { id: true, reviewerName: true, text: true, rating: true, createdAt: true },
@@ -51,6 +56,12 @@ export async function GET(
       facebook: business.facebook,
       services: business.services,
       availability: business.availability,
+      staff: business.staff.map((s) => ({
+        id: s.id,
+        name: s.name,
+        role: s.role,
+        serviceIds: s.services.map((x) => x.id),
+      })),
       reviews: business.reviews,
     });
   } catch (error) {

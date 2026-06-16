@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import styles from "../dashboard.module.css";
@@ -27,15 +28,16 @@ export default function Sidebar() {
 
   const isReservas = pathname === "/dashboard";
   const isServicios = pathname.startsWith("/dashboard/services");
+  const isStaff = pathname.startsWith("/dashboard/staff");
   const isClientes = pathname.startsWith("/dashboard/clients");
   const isReviews = pathname.startsWith("/dashboard/reviews");
   const isConfig = pathname.startsWith("/dashboard/settings");
 
   return (
     <aside className={styles.sidebar}>
-      <a href="/" className={styles.sidebarLogo}>
+      <Link href="/" className={styles.sidebarLogo}>
         agenda<span className={styles.sidebarLogoAccent}>py</span>
-      </a>
+      </Link>
 
       {business && (
         <div className={styles.sidebarBiz}>
@@ -45,36 +47,42 @@ export default function Sidebar() {
       )}
 
       <nav className={styles.nav}>
-        <a
+        <Link
           href="/dashboard"
           className={`${styles.navItem} ${isReservas ? styles.navItemActive : ""}`}
         >
           📅 Reservas
-        </a>
-        <a
+        </Link>
+        <Link
           href="/dashboard/services"
           className={`${styles.navItem} ${isServicios ? styles.navItemActive : ""}`}
         >
           🛠️ Servicios
-        </a>
-        <a
+        </Link>
+        <Link
+          href="/dashboard/staff"
+          className={`${styles.navItem} ${isStaff ? styles.navItemActive : ""}`}
+        >
+          ✂️ Profesionales
+        </Link>
+        <Link
           href="/dashboard/clients"
           className={`${styles.navItem} ${isClientes ? styles.navItemActive : ""}`}
         >
           👥 Clientes
-        </a>
-        <a
+        </Link>
+        <Link
           href="/dashboard/reviews"
           className={`${styles.navItem} ${isReviews ? styles.navItemActive : ""}`}
         >
           ⭐ Reseñas
-        </a>
-        <a
+        </Link>
+        <Link
           href="/dashboard/settings"
           className={`${styles.navItem} ${isConfig ? styles.navItemActive : ""}`}
         >
           ⚙️ Configuración
-        </a>
+        </Link>
       </nav>
 
       <div className={styles.sidebarBottom}>

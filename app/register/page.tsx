@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Plus_Jakarta_Sans } from "next/font/google";
@@ -97,7 +98,7 @@ export default function RegisterPage() {
 
         <div style={S.footer}>
           ¿Ya tenés cuenta?{" "}
-          <a href="/login" style={S.link}>Iniciá sesión</a>
+          <Link href="/login" style={S.link}>Iniciá sesión</Link>
         </div>
       </div>
     </div>

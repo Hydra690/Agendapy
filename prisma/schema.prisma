@@ -194,6 +194,7 @@ model Service {
   name        String                          // "Corte de cabello", "Limpieza dental"
   description String?
   duration    Int                             // En minutos
+  bufferMinutes Int    @default(0)            // Colchón de limpieza/preparación tras el turno
   price       Int?                            // En guaraníes (null = precio a consultar)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
@@ -225,7 +226,9 @@ model Availability {
   staffId    String?
   staff      Staff?     @relation(fields: [staffId], references: [id])
 
-  @@unique([businessId, staffId, dayOfWeek]) // Un horario por día por negocio/empleado
+  // Sin @@unique por día: un día puede tener MÚLTIPLES intervalos (turno partido /
+  // pausa de almuerzo). La unicidad por slot de reserva la cubre Booking, no esto.
+  @@index([businessId, staffId, dayOfWeek])
 }
 
 // =============================================================

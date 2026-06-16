@@ -4,6 +4,7 @@ import { notifyWhatsApp } from "@/lib/notify";
 import { logInfo, logError } from "@/lib/logger";
 import { dateToISODate } from "@/lib/date";
 import { addDaysYmd, tomorrowRange, ymdToUtcDate } from "@/lib/timezone";
+import { canUseFeature } from "@/lib/plan";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -33,13 +34,20 @@ export async function GET(request: NextRequest) {
         startTime: true,
         client: { select: { name: true, whatsapp: true } },
         service: { select: { name: true } },
-        business: { select: { name: true, timezone: true } },
+        business: {
+          select: { name: true, timezone: true, plan: true, planExpiry: true, trialEndsAt: true },
+        },
       },
     });
 
-    // Quedarnos solo con los que son "mañana" en la tz de su negocio.
+    // Quedarnos solo con los que son "mañana" en la tz de su negocio Y cuyo negocio
+    // tenga la feature de recordatorios (BASIC+). Los planes FREE no reciben
+    // recordatorios automáticos: alinea el costo de Twilio con el ingreso y es el
+    // gancho de upgrade. (No marca reminderSent: simplemente no son candidatos.)
     const bookings = candidates.filter(
-      (b) => dateToISODate(b.date as Date) === tomorrowRange(b.business.timezone, now).ymd
+      (b) =>
+        dateToISODate(b.date as Date) === tomorrowRange(b.business.timezone, now).ymd &&
+        canUseFeature(b.business, "reminders")
     );
 
     if (bookings.length === 0) {

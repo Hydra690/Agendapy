@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Plus_Jakarta_Sans } from "next/font/google";
 
@@ -56,7 +57,7 @@ function ResetForm() {
     return (
       <>
         <div style={S.error}>Enlace inválido. Pedí uno nuevo desde &quot;Olvidé mi contraseña&quot;.</div>
-        <div style={S.footer}><a href="/forgot-password" style={S.link}>Pedir enlace nuevo</a></div>
+        <div style={S.footer}><Link href="/forgot-password" style={S.link}>Pedir enlace nuevo</Link></div>
       </>
     );
   }
@@ -65,7 +66,7 @@ function ResetForm() {
     return (
       <>
         <div style={S.ok}>¡Listo! Tu contraseña fue actualizada.</div>
-        <div style={S.footer}><a href="/login" style={S.link}>Iniciar sesión →</a></div>
+        <div style={S.footer}><Link href="/login" style={S.link}>Iniciar sesión →</Link></div>
       </>
     );
   }

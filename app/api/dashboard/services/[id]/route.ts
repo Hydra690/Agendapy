@@ -37,6 +37,7 @@ export async function PATCH(
     data: {
       ...(body.name !== undefined && { name: body.name }),
       ...(body.duration !== undefined && { duration: body.duration }),
+      ...(body.bufferMinutes !== undefined && { bufferMinutes: body.bufferMinutes }),
       ...(body.price !== undefined && { price: body.price ?? null }),
       ...(body.description !== undefined && { description: body.description ?? null }),
       ...(body.isActive !== undefined && { isActive: body.isActive }),

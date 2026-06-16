@@ -8,9 +8,12 @@ export const authConfig: NextAuthConfig = {
       // explícito a los nombres GOOGLE_CLIENT_* que usa el proyecto (.env / Vercel).
       clientId: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      // Un usuario que se registró con email+contraseña y luego entra con Google
-      // (mismo email) queda vinculado a la misma cuenta en vez de chocar.
-      allowDangerousEmailAccountLinking: true,
+      // NO auto-vinculamos por email (allowDangerousEmailAccountLinking queda en su
+      // default `false`). Si alguien con cuenta de credenciales entra con Google del
+      // mismo email, NextAuth devuelve OAuthAccountNotLinked en vez de fusionar. Esto
+      // cierra un vector de toma de cuenta: un atacante podría haber creado una cuenta
+      // de credenciales (sin verificar) con el email de la víctima y heredar acceso
+      // cuando la víctima entra con Google.
     }),
   ],
   pages: {

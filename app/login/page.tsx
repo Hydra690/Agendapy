@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Plus_Jakarta_Sans } from "next/font/google";
@@ -32,15 +33,24 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resendMsg, setResendMsg] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setNeedsVerification(false);
+    setResendMsg(null);
     setLoading(true);
     try {
       const result = await signIn("credentials", { email, password, redirect: false });
       if (result?.error) {
-        setError("Email o contraseña incorrectos.");
+        if (result.code === "email_not_verified") {
+          setNeedsVerification(true);
+          setError("Verificá tu email antes de iniciar sesión. Revisá tu casilla.");
+        } else {
+          setError("Email o contraseña incorrectos.");
+        }
         return;
       }
       router.push("/dashboard");
@@ -48,6 +58,20 @@ export default function LoginPage() {
       setError("No se pudo conectar con el servidor.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleResend() {
+    setResendMsg(null);
+    try {
+      await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      setResendMsg("Si el email está registrado y sin verificar, te reenviamos el enlace.");
+    } catch {
+      setResendMsg("No se pudo reenviar. Intentá de nuevo en un momento.");
     }
   }
 
@@ -61,6 +85,14 @@ export default function LoginPage() {
         <p style={S.subtitle}>Bienvenido de vuelta</p>
 
         {error && <div style={S.error}>{error}</div>}
+        {needsVerification && (
+          <div style={{ marginBottom: 16, fontSize: "0.88rem" }}>
+            <button type="button" onClick={handleResend} style={{ ...S.link, background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit" }}>
+              Reenviar email de verificación
+            </button>
+            {resendMsg && <p style={{ color: "#4A4A6A", marginTop: 8 }}>{resendMsg}</p>}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} noValidate>
           <label style={S.label} htmlFor="email">Email</label>
@@ -73,7 +105,7 @@ export default function LoginPage() {
             {loading ? "Iniciando sesión..." : "Iniciar sesión →"}
           </button>
           <div style={{ ...S.footer, marginTop: 14 }}>
-            <a href="/forgot-password" style={S.link}>¿Olvidaste tu contraseña?</a>
+            <Link href="/forgot-password" style={S.link}>¿Olvidaste tu contraseña?</Link>
           </div>
         </form>
 
@@ -86,7 +118,7 @@ export default function LoginPage() {
 
         <div style={S.footer}>
           ¿No tenés cuenta?{" "}
-          <a href="/register" style={S.link}>Registrate</a>
+          <Link href="/register" style={S.link}>Registrate</Link>
         </div>
       </div>
     </div>

@@ -10,6 +10,8 @@
 //   - UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN (Upstash directo)
 //   - KV_REST_API_URL / KV_REST_API_TOKEN (integración Upstash↔Vercel, inyectadas solas)
 
+import { logWarn } from "@/lib/logger";
+
 const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
 
@@ -61,8 +63,13 @@ export async function isRateLimited(
   if (UPSTASH_URL && UPSTASH_TOKEN) {
     try {
       return await redisLimit(key, limit, windowMs);
-    } catch {
+    } catch (e) {
       // Si Redis no responde, no rompemos el servicio: usamos el limiter local.
+      // Fail-open intencional, pero lo dejamos visible: la degradación a memoria
+      // hace que el límite sea inefectivo entre instancias serverless.
+      logWarn("[ratelimit] Redis no respondió — degradado al limiter en memoria", {
+        error: e instanceof Error ? e.message : String(e),
+      });
       return memLimit(key, limit, windowMs);
     }
   }

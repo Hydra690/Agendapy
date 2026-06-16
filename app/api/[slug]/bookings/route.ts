@@ -7,6 +7,7 @@ import { logError } from "@/lib/logger";
 import { notifyWhatsApp } from "@/lib/notify";
 import { parseDateUTC, addMinutes, dateToISODate } from "@/lib/date";
 import { todayInTz } from "@/lib/timezone";
+import { rangesOverlap, staffCanDoService, dayOfWeekUTC, pickAvailableStaff } from "@/lib/booking";
 
 // NOTA: el listado de reservas por fecha es información sensible (PII de clientes)
 // y vive solo en el dashboard autenticado: GET /api/dashboard/bookings.
@@ -44,7 +45,7 @@ export async function POST(
       );
     }
 
-    const { serviceId, date: dateParam, startTime, clientName, clientWhatsapp, notes } = parsed.data;
+    const { serviceId, staffId, date: dateParam, startTime, clientName, clientWhatsapp, notes } = parsed.data;
 
     const bookingDate = parseDateUTC(dateParam);
     if (!bookingDate) {
@@ -96,24 +97,71 @@ export async function POST(
       throw new BookingLimitError();
     }
 
-    // Pre-chequeo de solapamiento de rangos [startTime, endTime) para dar un
-    // mensaje claro y evitar el caso común. La garantía ATÓMICA contra dos
-    // reservas del mismo slot la da el índice único parcial de la DB
-    // ("Booking_active_slot_unique", ver migración) → P2002 al insertar.
-    // Como "HH:mm" tiene ancho fijo, la comparación lexicográfica equivale a la
-    // temporal: dos rangos se pisan si existente.start < nuevo.end Y existente.end > nuevo.start.
-    const conflict = await prisma.booking.findFirst({
-      where: {
-        businessId: business.id,
-        date: bookingDate,
-        status: { in: ["PENDING", "CONFIRMED"] },
-        startTime: { lt: endTime },
-        endTime: { gt: startTime },
-      },
-      select: { id: true },
+    // Asignación de profesional + chequeo de disponibilidad/solape.
+    // La garantía ATÓMICA contra dos reservas del MISMO profesional en el mismo inicio
+    // la da el índice único parcial per-staff ("Booking_active_slot_unique", COALESCE);
+    // acá hacemos el pre-chequeo (mejor mensaje + caso común).
+    const activeStaff = await prisma.staff.findMany({
+      where: { businessId: business.id, isActive: true },
+      select: { id: true, services: { select: { id: true } } },
+      orderBy: { createdAt: "asc" },
     });
-    if (conflict) {
-      throw new SlotTakenError();
+
+    let assignedStaffId: string | null = null;
+
+    if (activeStaff.length === 0) {
+      // ---- Recurso único (sin profesionales): solape buffer-aware a nivel negocio ----
+      const newOccupiedEnd = addMinutes(endTime, service.bufferMinutes);
+      const sameDayActive = await prisma.booking.findMany({
+        where: { businessId: business.id, date: bookingDate, status: { in: ["PENDING", "CONFIRMED"] } },
+        select: { startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
+      });
+      const conflict = sameDayActive.some(b =>
+        rangesOverlap(startTime, newOccupiedEnd, b.startTime, addMinutes(b.endTime, b.service.bufferMinutes))
+      );
+      if (conflict) throw new SlotTakenError();
+    } else {
+      // ---- Multi-profesional: asignar un profesional elegible y LIBRE en ese slot ----
+      let candidates = activeStaff.filter(s => staffCanDoService(s.services.map(x => x.id), service.id));
+      if (staffId) {
+        candidates = candidates.filter(s => s.id === staffId);
+        if (candidates.length === 0) {
+          return NextResponse.json({ error: "Ese profesional no atiende este servicio" }, { status: 400 });
+        }
+      }
+      if (candidates.length === 0) {
+        return NextResponse.json({ error: "Ningún profesional ofrece este servicio" }, { status: 400 });
+      }
+
+      const ids = candidates.map(s => s.id);
+      const dow = dayOfWeekUTC(bookingDate);
+      const [availRows, bookingRows] = await Promise.all([
+        prisma.availability.findMany({
+          where: { businessId: business.id, dayOfWeek: dow, isActive: true, staffId: { in: ids } },
+          select: { staffId: true, startTime: true, endTime: true },
+        }),
+        prisma.booking.findMany({
+          where: { businessId: business.id, date: bookingDate, status: { in: ["PENDING", "CONFIRMED"] }, staffId: { in: ids } },
+          select: { staffId: true, startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
+        }),
+      ]);
+      const blocksByStaff = new Map<string, { startTime: string; endTime: string }[]>();
+      for (const r of availRows) {
+        const l = blocksByStaff.get(r.staffId!) ?? [];
+        l.push({ startTime: r.startTime, endTime: r.endTime });
+        blocksByStaff.set(r.staffId!, l);
+      }
+      const occByStaff = new Map<string, { startTime: string; endTime: string }[]>();
+      for (const b of bookingRows) {
+        const l = occByStaff.get(b.staffId!) ?? [];
+        l.push({ startTime: b.startTime, endTime: addMinutes(b.endTime, b.service.bufferMinutes) });
+        occByStaff.set(b.staffId!, l);
+      }
+      // Primer profesional (orden estable por antigüedad) con el slot libre.
+      assignedStaffId = pickAvailableStaff(
+        candidates.map(s => s.id), blocksByStaff, occByStaff, startTime, service.duration, service.bufferMinutes
+      );
+      if (!assignedStaffId) throw new SlotTakenError();
     }
 
     // Upsert del cliente por whatsapp+negocio (idempotente; carrera cubierta por
@@ -132,6 +180,7 @@ export async function POST(
           manageToken: randomBytes(24).toString("base64url"),
           businessId: business.id,
           serviceId: service.id,
+          staffId: assignedStaffId,
           clientId: client.id,
         },
         include: {

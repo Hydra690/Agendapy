@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
+import PlanUpsell from "../../components/PlanUpsell";
 
 interface Booking {
   id: string;
@@ -53,6 +55,7 @@ export default function ClientDetailPage() {
 
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
+  const [locked, setLocked] = useState(false);
   const [notes, setNotes] = useState("");
   const [notesSaving, setNotesSaving] = useState(false);
   const [notesSaved, setNotesSaved] = useState(false);
@@ -66,6 +69,7 @@ export default function ClientDetailPage() {
     fetch(`/api/dashboard/clients/${id}`)
       .then(r => {
         if (r.status === 404) { router.push("/dashboard/clients"); return null; }
+        if (r.status === 403) { setLocked(true); return null; }
         return r.json() as Promise<{ client: Client }>;
       })
       .then(data => {
@@ -95,6 +99,25 @@ export default function ClientDetailPage() {
   }
 
   if (loading) return <div style={{ color: "#4A4A6A", fontSize: "0.9rem" }}>Cargando...</div>;
+  if (locked) {
+    return (
+      <div>
+        <div style={{ marginBottom: 20 }}>
+          <button
+            type="button"
+            onClick={() => router.push("/dashboard/clients")}
+            style={{ color: "#8888aa", fontSize: "0.85rem", background: "none", border: "none", padding: 0, cursor: "pointer", font: "inherit" }}
+          >
+            ← Volver a clientes
+          </button>
+        </div>
+        <PlanUpsell
+          title="El detalle de clientes es una función del plan"
+          message="La ficha completa, el historial de reservas y las notas internas de cada cliente están disponibles en los planes pagos. Activá un plan para acceder."
+        />
+      </div>
+    );
+  }
   if (!client) return null;
 
   const completed = client.bookings.filter(b => b.status === "COMPLETED").length;
@@ -106,9 +129,9 @@ export default function ClientDetailPage() {
   return (
     <div>
       <div style={{ marginBottom: 20 }}>
-        <a href="/dashboard/clients" style={{ color: "#8888aa", fontSize: "0.85rem", textDecoration: "none" }}>
+        <Link href="/dashboard/clients" style={{ color: "#8888aa", fontSize: "0.85rem", textDecoration: "none" }}>
           ← Volver a clientes
-        </a>
+        </Link>
       </div>
 
       {/* Client header */}

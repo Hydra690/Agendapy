@@ -1,5 +1,17 @@
 const TWILIO_API = "https://api.twilio.com/2010-04-01/Accounts";
 
+/**
+ * Se lanza cuando faltan credenciales de Twilio. Un servicio externo no
+ * configurado nunca debe reportar éxito: tratamos la falta de config como un
+ * fallo visible (logueable, persistible) en vez de un return silencioso.
+ */
+export class TwilioNotConfiguredError extends Error {
+  constructor() {
+    super("Twilio no configurado — falta TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_WHATSAPP_FROM");
+    this.name = "TwilioNotConfiguredError";
+  }
+}
+
 function toWhatsAppNumber(raw: string): string {
   const stripped = raw.replace(/\s+/g, "");
   if (stripped.startsWith("whatsapp:")) return stripped;
@@ -25,8 +37,7 @@ export async function sendWhatsApp(
   const from = process.env.TWILIO_WHATSAPP_FROM;
 
   if (!sid || !token || !from) {
-    console.warn("[twilio] Credenciales faltantes — mensaje no enviado");
-    return;
+    throw new TwilioNotConfiguredError();
   }
 
   const params = new URLSearchParams({

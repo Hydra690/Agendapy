@@ -1,9 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import styles from "./booking.module.css";
+import { formatPrice, formatDate, todayISO } from "./format";
+import ReviewModal from "./ReviewModal";
+import MyBookingsModal from "./MyBookingsModal";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -34,6 +38,13 @@ interface Review {
   createdAt: string;
 }
 
+interface StaffMember {
+  id: string;
+  name: string;
+  role: string | null;
+  serviceIds: string[];   // servicios que realiza; vacío = todos
+}
+
 interface Business {
   name: string;
   slug: string;
@@ -48,6 +59,7 @@ interface Business {
   facebook: string | null;
   services: Service[];
   availability: Availability[];
+  staff: StaffMember[];
   reviews: Review[];
 }
 
@@ -91,30 +103,7 @@ const DAY_LABEL: Record<string, string> = {
 };
 
 // ---- Helpers ----
-
-function formatPrice(price: number | null): string {
-  if (price === null) return "A consultar";
-  return `Gs. ${new Intl.NumberFormat("es-PY").format(price)}`;
-}
-
-function formatDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  const d = new Date(year, month - 1, day);
-  return d.toLocaleDateString("es-PY", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function todayISO(): string {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${dd}`;
-}
+// formatPrice / formatDate / todayISO viven en ./format (compartidos con los modales).
 
 function isDotDone(current: 1 | 2 | 3 | "success", dot: 1 | 2 | 3): boolean {
   if (current === "success") return true;
@@ -126,9 +115,9 @@ function isDotDone(current: 1 | 2 | 3 | "success", dot: 1 | 2 | 3): boolean {
 function Navbar() {
   return (
     <nav className={styles.nav}>
-      <a href="/" className={styles.navLogo}>
+      <Link href="/" className={styles.navLogo}>
         agenda<span className={styles.navLogoAccent}>py</span>
-      </a>
+      </Link>
     </nav>
   );
 }
@@ -136,9 +125,9 @@ function Navbar() {
 function Footer() {
   return (
     <footer className={styles.footer}>
-      <a href="/" className={styles.footerLink}>
+      <Link href="/" className={styles.footerLink}>
         Powered by <strong>agendapy</strong>
-      </a>
+      </Link>
     </footer>
   );
 }
@@ -165,20 +154,11 @@ export default function BookingPage() {
   const [noSlots, setNoSlots] = useState(false);
   const [blockedReason, setBlockedReason] = useState<string | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null); // null = cualquiera
 
-  // Review modal state
+  // Modales: solo el flag de apertura; su estado interno vive en cada componente.
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
-  const [reviewForm, setReviewForm] = useState({ reviewerName: "", text: "", rating: 5 });
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [reviewError, setReviewError] = useState<string | null>(null);
-  const [reviewDone, setReviewDone] = useState(false);
-
-  // My bookings modal state
   const [myBookingsOpen, setMyBookingsOpen] = useState(false);
-  const [myBookingsWa, setMyBookingsWa] = useState("");
-  const [myBookingsLoading, setMyBookingsLoading] = useState(false);
-  const [myBookings, setMyBookings] = useState<{ id: string; date: string; startTime: string; endTime: string; status: string; manageToken: string | null; service: { name: string; price: number | null } }[] | null>(null);
-  const [myBookingsError, setMyBookingsError] = useState<string | null>(null);
 
   // Form state
   const [clientName, setClientName] = useState("");
@@ -209,8 +189,9 @@ export default function BookingPage() {
       setBlockedReason(null);
       setSelectedSlot(null);
       try {
+        const staffQuery = selectedStaffId ? `&staffId=${selectedStaffId}` : "";
         const res = await fetch(
-          `/api/${slug}/slots?date=${date}&serviceId=${selectedService.id}`
+          `/api/${slug}/slots?date=${date}&serviceId=${selectedService.id}${staffQuery}`
         );
         const data = await res.json() as { available: boolean; reason?: string; slots?: string[] };
         if (!data.available) {
@@ -226,34 +207,14 @@ export default function BookingPage() {
         setSlotsLoading(false);
       }
     },
-    [slug, selectedService]
+    [slug, selectedService, selectedStaffId]
   );
 
   useEffect(() => {
-    if (step === 2 && selectedDate && !dateError) {
-      fetchSlots(selectedDate);
-    }
+    // Carga de slots al entrar al paso 2 / cambiar fecha o profesional (fetch-on-mount).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (step === 2 && selectedDate && !dateError) fetchSlots(selectedDate);
   }, [step, selectedDate, dateError, fetchSlots]);
-
-  async function handleSubmitReview(e: React.FormEvent) {
-    e.preventDefault();
-    setReviewSubmitting(true);
-    setReviewError(null);
-    try {
-      const res = await fetch(`/api/${slug}/reviews`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(reviewForm),
-      });
-      const data = await res.json() as { message?: string; error?: string };
-      if (!res.ok) { setReviewError(data.error ?? "Error al enviar."); return; }
-      setReviewDone(true);
-    } catch {
-      setReviewError("No se pudo conectar con el servidor.");
-    } finally {
-      setReviewSubmitting(false);
-    }
-  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -266,6 +227,7 @@ export default function BookingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           serviceId: selectedService.id,
+          staffId: selectedStaffId ?? undefined,
           date: selectedDate,
           startTime: selectedSlot,
           clientName: clientName.trim(),
@@ -293,26 +255,6 @@ export default function BookingPage() {
     }
   }
 
-  async function fetchMyBookings() {
-    if (!/^\d{7,15}$/.test(myBookingsWa)) {
-      setMyBookingsError("Ingresá un número de WhatsApp válido (solo dígitos).");
-      return;
-    }
-    setMyBookingsLoading(true);
-    setMyBookingsError(null);
-    setMyBookings(null);
-    try {
-      const res = await fetch(`/api/${slug}/my-bookings?whatsapp=${myBookingsWa}`);
-      const data = await res.json() as { bookings?: typeof myBookings; error?: string };
-      if (!res.ok) { setMyBookingsError(data.error ?? "Error al buscar reservas."); return; }
-      setMyBookings(data.bookings ?? []);
-    } catch {
-      setMyBookingsError("No se pudo conectar con el servidor.");
-    } finally {
-      setMyBookingsLoading(false);
-    }
-  }
-
   function resetWizard() {
     setStep(1);
     setSelectedService(null);
@@ -323,6 +265,7 @@ export default function BookingPage() {
     setNoSlots(false);
     setBlockedReason(null);
     setSelectedSlot(null);
+    setSelectedStaffId(null);
     setClientName("");
     setClientWhatsapp("");
     setNotes("");
@@ -341,6 +284,18 @@ export default function BookingPage() {
     : [];
 
   const activeDays = new Set(business?.availability.map(a => a.dayOfWeek) ?? []);
+
+  // Profesionales que pueden hacer el servicio elegido (vacío de serviceIds = todos).
+  const eligibleStaff = (business?.staff ?? []).filter(
+    (s) => selectedService != null && (s.serviceIds.length === 0 || s.serviceIds.includes(selectedService.id))
+  );
+
+  const staffChip = (on: boolean): React.CSSProperties => ({
+    border: `1.5px solid ${on ? "#00C48C" : "#E8EAF0"}`,
+    background: on ? "#E8FFF6" : "#fff",
+    color: on ? "#0f7a55" : "#4A4A6A",
+    borderRadius: 99, padding: "7px 14px", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer",
+  });
 
   const availSummary = (() => {
     if (!business || business.availability.length === 0) return null;
@@ -546,7 +501,7 @@ export default function BookingPage() {
                     Lo que dicen nuestros clientes
                   </span>
                   <button
-                    onClick={() => { setReviewModalOpen(true); setReviewDone(false); setReviewError(null); setReviewForm({ reviewerName: "", text: "", rating: 5 }); }}
+                    onClick={() => setReviewModalOpen(true)}
                     style={{ background: "none", border: "1.5px solid #e8eaf0", borderRadius: 8, padding: "4px 12px", fontSize: "0.78rem", color: "#4A4A6A", cursor: "pointer", fontWeight: 600 }}
                   >
                     + Tu opinión
@@ -568,7 +523,7 @@ export default function BookingPage() {
             {business.reviews.length === 0 && (
               <div style={{ textAlign: "center", marginBottom: 16 }}>
                 <button
-                  onClick={() => { setReviewModalOpen(true); setReviewDone(false); setReviewError(null); setReviewForm({ reviewerName: "", text: "", rating: 5 }); }}
+                  onClick={() => setReviewModalOpen(true)}
                   style={{ background: "none", border: "1.5px solid #e8eaf0", borderRadius: 10, padding: "8px 20px", fontSize: "0.85rem", color: "#4A4A6A", cursor: "pointer", fontWeight: 600 }}
                 >
                   ⭐ Dejar un testimonio
@@ -593,6 +548,7 @@ export default function BookingPage() {
                       setSlots([]);
                       setNoSlots(false);
                       setSelectedSlot(null);
+                      setSelectedStaffId(null);
                       setStep(2);
                     }}
                   >
@@ -631,6 +587,24 @@ export default function BookingPage() {
                 ⏱ {selectedService.duration} min · {formatPrice(selectedService.price)}
               </span>
             </div>
+
+            {eligibleStaff.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: "0.85rem", fontWeight: 600, color: "#1A1A2E", marginBottom: 8 }}>
+                  Profesional
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  <button type="button" onClick={() => setSelectedStaffId(null)} style={staffChip(selectedStaffId === null)}>
+                    Cualquiera disponible
+                  </button>
+                  {eligibleStaff.map((s) => (
+                    <button key={s.id} type="button" onClick={() => setSelectedStaffId(s.id)} style={staffChip(selectedStaffId === s.id)}>
+                      {s.name}{s.role ? ` · ${s.role}` : ""}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {submitError && (
               <div className={styles.errorMsg}>{submitError}</div>
@@ -916,7 +890,7 @@ export default function BookingPage() {
       {step !== "success" && (
         <>
           <div className={styles.myBookingsBar}>
-            <button className={styles.myBookingsBtn} onClick={() => { setMyBookingsOpen(true); setMyBookings(null); setMyBookingsWa(""); setMyBookingsError(null); }}>
+            <button className={styles.myBookingsBtn} onClick={() => setMyBookingsOpen(true)}>
               Ver mis reservas
             </button>
           </div>
@@ -924,151 +898,9 @@ export default function BookingPage() {
         </>
       )}
 
-      {/* ---- REVIEW MODAL ---- */}
-      {reviewModalOpen && (
-        <div className={styles.modalOverlay} onClick={() => !reviewSubmitting && setReviewModalOpen(false)}>
-          <div className={styles.myBookingsModal} onClick={e => e.stopPropagation()}>
-            <div className={styles.myBookingsModalHeader}>
-              <h3 className={styles.myBookingsModalTitle}>Dejar un testimonio</h3>
-              <button className={styles.myBookingsClose} onClick={() => setReviewModalOpen(false)}>✕</button>
-            </div>
-            {reviewDone ? (
-              <div style={{ textAlign: "center", padding: "24px 0" }}>
-                <div style={{ fontSize: "2.5rem", marginBottom: 10 }}>🙏</div>
-                <p style={{ fontWeight: 700, color: "#1A1A2E", marginBottom: 6 }}>¡Gracias por tu opinión!</p>
-                <p style={{ fontSize: "0.85rem", color: "#4A4A6A" }}>Tu testimonio será visible una vez que sea aprobado.</p>
-                <button
-                  className={styles.myBookingsSearchBtn}
-                  style={{ marginTop: 16 }}
-                  onClick={() => setReviewModalOpen(false)}
-                >
-                  Cerrar
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmitReview} style={{ padding: "4px 0" }}>
-                <p className={styles.myBookingsModalSub}>Tu opinión ayuda a otros clientes a elegir</p>
+      {reviewModalOpen && <ReviewModal slug={slug} onClose={() => setReviewModalOpen(false)} />}
 
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "#4A4A6A", display: "block", marginBottom: 5 }}>Tu nombre *</label>
-                  <input
-                    type="text"
-                    className={styles.myBookingsInput}
-                    placeholder="Ej: Juan Pérez"
-                    value={reviewForm.reviewerName}
-                    onChange={e => setReviewForm(f => ({ ...f, reviewerName: e.target.value }))}
-                    required
-                    maxLength={100}
-                  />
-                </div>
-
-                <div style={{ marginBottom: 12 }}>
-                  <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "#4A4A6A", display: "block", marginBottom: 5 }}>Calificación *</label>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    {[1, 2, 3, 4, 5].map(n => (
-                      <button
-                        key={n}
-                        type="button"
-                        onClick={() => setReviewForm(f => ({ ...f, rating: n }))}
-                        style={{
-                          fontSize: "1.6rem",
-                          background: "none",
-                          border: "none",
-                          cursor: "pointer",
-                          color: n <= reviewForm.rating ? "#f59e0b" : "#d1d5db",
-                          padding: 0,
-                          lineHeight: 1,
-                        }}
-                      >
-                        ★
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: "0.82rem", fontWeight: 600, color: "#4A4A6A", display: "block", marginBottom: 5 }}>Tu testimonio *</label>
-                  <textarea
-                    className={styles.myBookingsInput}
-                    style={{ resize: "vertical", minHeight: 80 }}
-                    placeholder="Contá tu experiencia (mínimo 10 caracteres)"
-                    value={reviewForm.text}
-                    onChange={e => setReviewForm(f => ({ ...f, text: e.target.value }))}
-                    required
-                    minLength={10}
-                    maxLength={500}
-                    rows={3}
-                  />
-                  <span style={{ fontSize: "0.75rem", color: "#8888aa" }}>{reviewForm.text.length}/500</span>
-                </div>
-
-                {reviewError && <div className={styles.myBookingsError}>{reviewError}</div>}
-
-                <div className={styles.myBookingsSearch}>
-                  <button
-                    type="submit"
-                    className={styles.myBookingsSearchBtn}
-                    style={{ width: "100%" }}
-                    disabled={reviewSubmitting || !reviewForm.reviewerName.trim() || reviewForm.text.trim().length < 10}
-                  >
-                    {reviewSubmitting ? "Enviando..." : "Enviar testimonio"}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
-
-      {myBookingsOpen && (
-        <div className={styles.modalOverlay} onClick={() => setMyBookingsOpen(false)}>
-          <div className={styles.myBookingsModal} onClick={e => e.stopPropagation()}>
-            <div className={styles.myBookingsModalHeader}>
-              <h3 className={styles.myBookingsModalTitle}>Mis reservas activas</h3>
-              <button className={styles.myBookingsClose} onClick={() => setMyBookingsOpen(false)}>✕</button>
-            </div>
-            <p className={styles.myBookingsModalSub}>Ingresá el WhatsApp con el que reservaste</p>
-            <div className={styles.myBookingsSearch}>
-              <input
-                type="tel"
-                className={styles.myBookingsInput}
-                placeholder="Ej: 0981123456"
-                value={myBookingsWa}
-                onChange={e => { setMyBookingsWa(e.target.value.replace(/\D/g, "")); setMyBookings(null); setMyBookingsError(null); }}
-                onKeyDown={e => e.key === "Enter" && fetchMyBookings()}
-                maxLength={15}
-              />
-              <button className={styles.myBookingsSearchBtn} onClick={fetchMyBookings} disabled={myBookingsLoading}>
-                {myBookingsLoading ? "..." : "Buscar"}
-              </button>
-            </div>
-            {myBookingsError && <div className={styles.myBookingsError}>{myBookingsError}</div>}
-            {myBookings !== null && myBookings.length === 0 && (
-              <div className={styles.myBookingsEmpty}>No tenés reservas activas en este negocio.</div>
-            )}
-            {myBookings && myBookings.length > 0 && (
-              <div className={styles.myBookingsList}>
-                {myBookings.map(b => (
-                  <div key={b.id} className={styles.myBookingItem}>
-                    <div className={styles.myBookingDate}>{formatDate(b.date.split("T")[0])}</div>
-                    <div className={styles.myBookingTime}>{b.startTime} – {b.endTime} hs</div>
-                    <div className={styles.myBookingService}>{b.service.name}{b.service.price != null ? ` · ${formatPrice(b.service.price)}` : ""}</div>
-                    <span className={styles.myBookingStatus}>{b.status === "PENDING" ? "Pendiente" : "Confirmado"}</span>
-                    {b.manageToken && (
-                      <a
-                        href={`/turno/${b.manageToken}`}
-                        style={{ display: "inline-block", marginTop: 8, color: "#00C48C", fontWeight: 600, fontSize: "0.8rem", textDecoration: "none" }}
-                      >
-                        Gestionar / cancelar →
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {myBookingsOpen && <MyBookingsModal slug={slug} onClose={() => setMyBookingsOpen(false)} />}
     </div>
   );
 }
