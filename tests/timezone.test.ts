@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ymdInTz, addDaysYmd, tomorrowRange, ymdToUtcDate } from "@/lib/timezone";
+import { ymdInTz, addDaysYmd, tomorrowRange, ymdToUtcDate, zonedToUtc } from "@/lib/timezone";
 
 // Usamos zonas de offset fijo (Etc/GMT+N = UTC-N) para evitar ambigüedad de DST.
 describe("ymdInTz", () => {
@@ -24,6 +24,21 @@ describe("addDaysYmd", () => {
 describe("ymdToUtcDate", () => {
   it("es medianoche UTC del día calendario", () => {
     expect(ymdToUtcDate("2026-08-16").toISOString()).toBe("2026-08-16T00:00:00.000Z");
+  });
+});
+
+describe("zonedToUtc", () => {
+  it("convierte hora de pared en UTC a UTC sin corrimiento", () => {
+    expect(zonedToUtc("2026-08-14", "15:00", "UTC").toISOString()).toBe("2026-08-14T15:00:00.000Z");
+  });
+
+  it("aplica el offset de una tz UTC-3 (Etc/GMT+3)", () => {
+    // 15:00 en UTC-3 = 18:00 UTC
+    expect(zonedToUtc("2026-08-14", "15:00", "Etc/GMT+3").toISOString()).toBe("2026-08-14T18:00:00.000Z");
+  });
+
+  it("America/Asuncion (UTC-3, sin DST desde 2024) = 18:00 UTC", () => {
+    expect(zonedToUtc("2026-08-14", "15:00", "America/Asuncion").toISOString()).toBe("2026-08-14T18:00:00.000Z");
   });
 });
 

@@ -137,6 +137,9 @@ model Business {
   instagram   String?          // Handle sin @, ej: "mi_barberia"
   facebook    String?          // URL o handle de Facebook
   timezone    String           @default("America/Asuncion")
+  // Self-service: horas mínimas de antelación con que el cliente puede cancelar.
+  // 0 = puede cancelar hasta el mismo momento del turno.
+  cancellationWindowHours Int    @default(2)
   isActive    Boolean          @default(true)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
@@ -276,6 +279,10 @@ model Booking {
   endTime       String        // "10:30"
   status        BookingStatus @default(PENDING)
   notes         String?       // Notas del cliente al reservar
+
+  // Token público de gestión: permite al cliente ver y cancelar su reserva
+  // (página /turno/<token>) sin necesidad de cuenta. Aleatorio e irrepetible.
+  manageToken   String?       @unique
 
   // Timestamps de cambios de estado
   confirmedAt   DateTime?

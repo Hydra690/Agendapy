@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateSlots, rangesOverlap, availableSlots, dayOfWeekUTC } from "@/lib/booking";
+import { generateSlots, rangesOverlap, availableSlots, dayOfWeekUTC, canCancelNow, cancellationDeadline } from "@/lib/booking";
 
 describe("generateSlots", () => {
   it("genera pasos de la duración dentro del intervalo", () => {
@@ -40,5 +40,31 @@ describe("dayOfWeekUTC", () => {
   it("mapea correctamente", () => {
     expect(dayOfWeekUTC(new Date("2026-08-14T00:00:00Z"))).toBe("FRIDAY"); // 2026-08-14 es viernes
     expect(dayOfWeekUTC(new Date("2026-08-16T00:00:00Z"))).toBe("SUNDAY");
+  });
+});
+
+describe("cancelación: deadline y ventana", () => {
+  const appt = new Date("2026-08-14T15:00:00Z");
+
+  it("el deadline es windowHours antes del turno", () => {
+    expect(cancellationDeadline(appt, 2).toISOString()).toBe("2026-08-14T13:00:00.000Z");
+    expect(cancellationDeadline(appt, 0).toISOString()).toBe("2026-08-14T15:00:00.000Z");
+  });
+
+  it("permite cancelar antes del deadline", () => {
+    expect(canCancelNow(appt, 2, new Date("2026-08-14T12:59:00Z"))).toBe(true);
+  });
+
+  it("justo en el deadline todavía permite (límite inclusivo)", () => {
+    expect(canCancelNow(appt, 2, new Date("2026-08-14T13:00:00Z"))).toBe(true);
+  });
+
+  it("rechaza pasado el deadline", () => {
+    expect(canCancelNow(appt, 2, new Date("2026-08-14T13:00:01Z"))).toBe(false);
+  });
+
+  it("windowHours=0 permite hasta el mismo turno pero no después", () => {
+    expect(canCancelNow(appt, 0, new Date("2026-08-14T15:00:00Z"))).toBe(true);
+    expect(canCancelNow(appt, 0, new Date("2026-08-14T15:00:01Z"))).toBe(false);
   });
 });

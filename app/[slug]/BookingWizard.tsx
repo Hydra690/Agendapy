@@ -57,6 +57,7 @@ interface BookingResult {
   startTime: string;
   endTime: string;
   status: string;
+  manageToken: string | null;
   service: { name: string; price: number | null };
   client: { name: string };
 }
@@ -176,7 +177,7 @@ export default function BookingPage() {
   const [myBookingsOpen, setMyBookingsOpen] = useState(false);
   const [myBookingsWa, setMyBookingsWa] = useState("");
   const [myBookingsLoading, setMyBookingsLoading] = useState(false);
-  const [myBookings, setMyBookings] = useState<{ id: string; date: string; startTime: string; endTime: string; status: string; service: { name: string; price: number | null } }[] | null>(null);
+  const [myBookings, setMyBookings] = useState<{ id: string; date: string; startTime: string; endTime: string; status: string; manageToken: string | null; service: { name: string; price: number | null } }[] | null>(null);
   const [myBookingsError, setMyBookingsError] = useState<string | null>(null);
 
   // Form state
@@ -876,6 +877,20 @@ export default function BookingPage() {
               </div>
             </div>
 
+            {bookingResult.manageToken && (
+              <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 12, padding: "14px 16px", marginBottom: 18, textAlign: "center" }}>
+                <p style={{ color: "#cfd2e0", fontSize: "0.82rem", margin: "0 0 10px", lineHeight: 1.5 }}>
+                  Guardá este link para ver o cancelar tu reserva más tarde:
+                </p>
+                <a
+                  href={`/turno/${bookingResult.manageToken}`}
+                  style={{ display: "inline-block", color: "#00C48C", fontWeight: 700, textDecoration: "none", fontSize: "0.9rem" }}
+                >
+                  Gestionar mi reserva →
+                </a>
+              </div>
+            )}
+
             <div className={styles.successActions}>
               {business.whatsapp && (
                 <a
@@ -1039,6 +1054,14 @@ export default function BookingPage() {
                     <div className={styles.myBookingTime}>{b.startTime} – {b.endTime} hs</div>
                     <div className={styles.myBookingService}>{b.service.name}{b.service.price != null ? ` · ${formatPrice(b.service.price)}` : ""}</div>
                     <span className={styles.myBookingStatus}>{b.status === "PENDING" ? "Pendiente" : "Confirmado"}</span>
+                    {b.manageToken && (
+                      <a
+                        href={`/turno/${b.manageToken}`}
+                        style={{ display: "inline-block", marginTop: 8, color: "#00C48C", fontWeight: 600, fontSize: "0.8rem", textDecoration: "none" }}
+                      >
+                        Gestionar / cancelar →
+                      </a>
+                    )}
                   </div>
                 ))}
               </div>

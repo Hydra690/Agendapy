@@ -50,6 +50,20 @@ export interface BookedRange {
   endTime: string;
 }
 
+/** Instante límite hasta el que se puede cancelar: `windowHours` antes del turno. */
+export function cancellationDeadline(appointment: Date, windowHours: number): Date {
+  return new Date(appointment.getTime() - windowHours * 3_600_000);
+}
+
+/**
+ * ¿Se puede cancelar AHORA? True si todavía falta al menos `windowHours` para el
+ * turno (i.e. estamos antes del deadline). windowHours = 0 permite cancelar hasta
+ * el mismo instante del turno.
+ */
+export function canCancelNow(appointment: Date, windowHours: number, now: Date = new Date()): boolean {
+  return now.getTime() <= cancellationDeadline(appointment, windowHours).getTime();
+}
+
 /**
  * Slots libres: de todos los posibles, descarta los que se pisan con alguna
  * reserva existente (considerando la duración real de cada una, no solo el inicio).

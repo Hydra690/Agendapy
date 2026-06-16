@@ -51,6 +51,8 @@ export const BusinessUpdateSchema = z.object({
   coverUrl: optionalHttpUrl,
   instagram: optionalText(60),
   facebook: optionalText(200),
+  // Horas mínimas de antelación con que el cliente puede cancelar online (0-168).
+  cancellationWindowHours: z.coerce.number().int().min(0).max(168).optional(),
 });
 
 // Servicios del dashboard

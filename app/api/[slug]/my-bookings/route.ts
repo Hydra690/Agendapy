@@ -42,6 +42,7 @@ export async function GET(
         startTime: true,
         endTime: true,
         status: true,
+        manageToken: true,
         service: { select: { name: true, price: true } },
       },
       orderBy: [{ date: "asc" }, { startTime: "asc" }],

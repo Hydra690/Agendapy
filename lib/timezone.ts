@@ -38,6 +38,33 @@ export function ymdToUtcDate(ymd: string): Date {
 }
 
 /**
+ * Instante UTC (Date) que corresponde a una hora de pared ("HH:mm") de un día
+ * calendario ("YYYY-MM-DD") en la zona horaria dada. Resuelve el offset de la tz
+ * en ese instante con el método de dos pasos (sin librerías): formatea un "guess"
+ * en la tz y mide cuánto se corrió respecto de UTC. Paraguay no usa DST desde
+ * 2024, así que no hay ambigüedad de horario.
+ */
+export function zonedToUtc(ymd: string, hhmm: string, tz: string = DEFAULT_TZ): Date {
+  const [Y, M, D] = ymd.split("-").map(Number);
+  const [h, m] = hhmm.split(":").map(Number);
+  const guess = Date.UTC(Y, M - 1, D, h, m);
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(new Date(guess));
+  const get = (t: string) => Number(parts.find((p) => p.type === t)!.value);
+  const asTz = Date.UTC(get("year"), get("month") - 1, get("day"), get("hour"), get("minute"), get("second"));
+  const offset = asTz - guess; // cuánto adelanta la tz respecto de UTC
+  return new Date(guess - offset);
+}
+
+/**
  * Rango [start, end) en Date UTC-midnight que cubre el día calendario "mañana"
  * en la tz dada. Pensado para el cron de recordatorios: busca reservas cuyo
  * `date` (día calendario) sea el de mañana en la tz del negocio.

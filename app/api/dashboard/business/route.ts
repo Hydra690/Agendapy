@@ -17,6 +17,7 @@ const BUSINESS_SELECT = {
   coverUrl: true,
   instagram: true,
   facebook: true,
+  cancellationWindowHours: true,
   isActive: true,
   plan: true,
   planExpiry: true,
@@ -95,6 +96,9 @@ export async function PATCH(req: Request) {
         coverUrl: data.coverUrl ?? null,
         instagram: data.instagram ?? null,
         facebook: data.facebook ?? null,
+        ...(data.cancellationWindowHours !== undefined
+          ? { cancellationWindowHours: data.cancellationWindowHours }
+          : {}),
       },
     });
 

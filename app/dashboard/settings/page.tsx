@@ -20,6 +20,7 @@ interface Business {
   coverUrl: string | null;
   instagram: string | null;
   facebook: string | null;
+  cancellationWindowHours: number;
 }
 
 interface DaySchedule {
@@ -91,7 +92,7 @@ export default function SettingsPage() {
 
   // Business form
   const [business, setBusiness] = useState<Business | null>(null);
-  const [bizForm, setBizForm] = useState({ name: "", description: "", address: "", phone: "", whatsapp: "", logoUrl: "", coverUrl: "", instagram: "", facebook: "" });
+  const [bizForm, setBizForm] = useState({ name: "", description: "", address: "", phone: "", whatsapp: "", logoUrl: "", coverUrl: "", instagram: "", facebook: "", cancellationWindowHours: 2 });
   const [bizError, setBizError] = useState<string | null>(null);
   const [bizSaving, setBizSaving] = useState(false);
   const [bizSaved, setBizSaved] = useState(false);
@@ -140,6 +141,7 @@ export default function SettingsPage() {
         coverUrl: bizData.business.coverUrl ?? "",
         instagram: bizData.business.instagram ?? "",
         facebook: bizData.business.facebook ?? "",
+        cancellationWindowHours: bizData.business.cancellationWindowHours ?? 2,
       });
 
       setSchedule(DEFAULT_SCHEDULE.map((def, i) => {
@@ -417,6 +419,27 @@ export default function SettingsPage() {
               placeholder="mi.negocio o URL completa"
             />
           </div>
+        </div>
+
+        <div className={styles.formGroup}>
+          <label className={styles.formLabel}>Cancelación del cliente</label>
+          <select
+            className={styles.formInput}
+            value={bizForm.cancellationWindowHours}
+            onChange={e => setBizForm(f => ({ ...f, cancellationWindowHours: Number(e.target.value) }))}
+          >
+            <option value={0}>Hasta el momento del turno</option>
+            <option value={1}>Hasta 1 hora antes</option>
+            <option value={2}>Hasta 2 horas antes</option>
+            <option value={3}>Hasta 3 horas antes</option>
+            <option value={6}>Hasta 6 horas antes</option>
+            <option value={12}>Hasta 12 horas antes</option>
+            <option value={24}>Hasta 24 horas antes</option>
+            <option value={48}>Hasta 48 horas antes</option>
+          </select>
+          <span style={{ fontSize: "0.78rem", color: "#8888aa", marginTop: 4, display: "block" }}>
+            Hasta cuándo tus clientes pueden cancelar solos desde su link de reserva. Después de ese plazo, deberán contactarte.
+          </span>
         </div>
 
         {bizError && <div className={styles.formError}>{bizError}</div>}

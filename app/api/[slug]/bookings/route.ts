@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { BookingSchema, formatZodErrors } from "@/lib/validations";
@@ -128,6 +129,7 @@ export async function POST(
           endTime,
           status: "PENDING",
           notes: typeof notes === "string" ? notes.trim() || null : null,
+          manageToken: randomBytes(24).toString("base64url"),
           businessId: business.id,
           serviceId: service.id,
           clientId: client.id,
