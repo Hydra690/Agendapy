@@ -108,6 +108,34 @@ export function availableSlots(
   return [...new Set(out)].sort();
 }
 
+export type SlotCheck = "ok" | "out_of_hours" | "taken";
+
+/**
+ * Valida un `startTime` pedido contra los bloques de atención y las reservas
+ * existentes de un RECURSO ÚNICO (negocio sin profesionales). Distingue:
+ *  - "out_of_hours": el horario no es un slot que el sistema ofrecería ese día
+ *    (negocio cerrado, fuera de horario, o fuera de la grilla duración+buffer).
+ *  - "taken": es un slot válido pero está ocupado (solape buffer-aware).
+ *  - "ok": reservable.
+ *
+ * Es la garantía de que el POST de reserva acepta solo lo mismo que la UI ofrece
+ * vía /slots: sin esto, un POST directo podía crear reservas fuera de horario.
+ * `occupied[].endTime` debe venir ya extendido con el buffer (fin ocupado).
+ */
+export function checkSingleResourceSlot(
+  blocks: Array<{ startTime: string; endTime: string }>,
+  durationMinutes: number,
+  bufferMinutes: number,
+  occupied: BookedRange[],
+  startTime: string
+): SlotCheck {
+  const offered = availableSlots(blocks, durationMinutes, bufferMinutes, []);
+  if (!offered.includes(startTime)) return "out_of_hours";
+  const free = availableSlots(blocks, durationMinutes, bufferMinutes, occupied);
+  if (!free.includes(startTime)) return "taken";
+  return "ok";
+}
+
 /** Une (dedup + ordena) los slots libres de varios recursos/profesionales. Un slot
  *  se ofrece si AL MENOS UNO está libre en ese horario. */
 export function unionSlots(slotLists: string[][]): string[] {

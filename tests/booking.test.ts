@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateSlots, rangesOverlap, availableSlots, dayOfWeekUTC, canCancelNow, cancellationDeadline, unionSlots, staffCanDoService, pickAvailableStaff } from "@/lib/booking";
+import { generateSlots, rangesOverlap, availableSlots, dayOfWeekUTC, canCancelNow, cancellationDeadline, unionSlots, staffCanDoService, pickAvailableStaff, checkSingleResourceSlot } from "@/lib/booking";
 
 describe("generateSlots", () => {
   it("genera pasos de la duración dentro del intervalo", () => {
@@ -59,6 +59,41 @@ describe("availableSlots", () => {
       { startTime: "08:00", endTime: "08:45" },
     ]);
     expect(slots).toEqual(["08:45", "09:30"]);
+  });
+});
+
+describe("checkSingleResourceSlot", () => {
+  const blocks = [{ startTime: "08:00", endTime: "12:00" }];
+
+  it("ok: slot válido y libre", () => {
+    expect(checkSingleResourceSlot(blocks, 30, 0, [], "08:00")).toBe("ok");
+    expect(checkSingleResourceSlot(blocks, 30, 0, [], "11:30")).toBe("ok");
+  });
+
+  it("out_of_hours: antes de abrir / fuera de horario", () => {
+    expect(checkSingleResourceSlot(blocks, 30, 0, [], "03:00")).toBe("out_of_hours");
+    expect(checkSingleResourceSlot(blocks, 30, 0, [], "12:00")).toBe("out_of_hours");
+  });
+
+  it("out_of_hours: no entra completo antes del cierre", () => {
+    // 11:45 + 30min = 12:15 > 12:00 → no es un slot ofrecible.
+    expect(checkSingleResourceSlot(blocks, 30, 0, [], "11:45")).toBe("out_of_hours");
+  });
+
+  it("out_of_hours: horario fuera de la grilla duración+buffer", () => {
+    // Grilla cada 30: 08:00, 08:30... 08:15 no es un inicio válido.
+    expect(checkSingleResourceSlot(blocks, 30, 0, [], "08:15")).toBe("out_of_hours");
+  });
+
+  it("out_of_hours: el negocio no atiende ese día (sin bloques)", () => {
+    expect(checkSingleResourceSlot([], 30, 0, [], "08:00")).toBe("out_of_hours");
+  });
+
+  it("taken: slot válido pero ocupado (buffer-aware)", () => {
+    const occupied = [{ startTime: "08:00", endTime: "08:30" }];
+    expect(checkSingleResourceSlot(blocks, 30, 0, occupied, "08:00")).toBe("taken");
+    // El de al lado sigue libre.
+    expect(checkSingleResourceSlot(blocks, 30, 0, occupied, "08:30")).toBe("ok");
   });
 });
 

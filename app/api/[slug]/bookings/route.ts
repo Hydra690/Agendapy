@@ -7,7 +7,7 @@ import { logError } from "@/lib/logger";
 import { notifyWhatsApp } from "@/lib/notify";
 import { parseDateUTC, addMinutes, dateToISODate } from "@/lib/date";
 import { todayInTz } from "@/lib/timezone";
-import { rangesOverlap, staffCanDoService, dayOfWeekUTC, pickAvailableStaff } from "@/lib/booking";
+import { checkSingleResourceSlot, staffCanDoService, dayOfWeekUTC, pickAvailableStaff } from "@/lib/booking";
 
 // NOTA: el listado de reservas por fecha es información sensible (PII de clientes)
 // y vive solo en el dashboard autenticado: GET /api/dashboard/bookings.
@@ -73,6 +73,18 @@ export async function POST(
       );
     }
 
+    // Fecha bloqueada por el negocio (feriado, vacaciones). El endpoint de slots
+    // ya la oculta de la UI; acá la cortamos también para el POST directo.
+    const blocked = await prisma.blockedDate.findUnique({
+      where: { businessId_date: { businessId: business.id, date: bookingDate } },
+    });
+    if (blocked) {
+      return NextResponse.json(
+        { error: blocked.reason ?? "Esa fecha no está disponible para reservar" },
+        { status: 400 }
+      );
+    }
+
     const service = await prisma.service.findFirst({
       where: { id: serviceId, businessId: business.id, isActive: true },
     });
@@ -110,16 +122,28 @@ export async function POST(
     let assignedStaffId: string | null = null;
 
     if (activeStaff.length === 0) {
-      // ---- Recurso único (sin profesionales): solape buffer-aware a nivel negocio ----
-      const newOccupiedEnd = addMinutes(endTime, service.bufferMinutes);
-      const sameDayActive = await prisma.booking.findMany({
-        where: { businessId: business.id, date: bookingDate, status: { in: ["PENDING", "CONFIRMED"] } },
-        select: { startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
-      });
-      const conflict = sameDayActive.some(b =>
-        rangesOverlap(startTime, newOccupiedEnd, b.startTime, addMinutes(b.endTime, b.service.bufferMinutes))
-      );
-      if (conflict) throw new SlotTakenError();
+      // ---- Recurso único (sin profesionales): validar disponibilidad + solape ----
+      // No alcanza con chequear solape: el slot debe caer dentro de un bloque de
+      // atención del día y sobre la grilla duración+buffer (lo mismo que ofrece la
+      // UI vía /slots). Si no, un POST directo crearía reservas fuera de horario.
+      const dow = dayOfWeekUTC(bookingDate);
+      const [blocks, sameDayActive] = await Promise.all([
+        prisma.availability.findMany({
+          where: { businessId: business.id, dayOfWeek: dow, isActive: true, staffId: null },
+          select: { startTime: true, endTime: true },
+        }),
+        prisma.booking.findMany({
+          where: { businessId: business.id, date: bookingDate, status: { in: ["PENDING", "CONFIRMED"] } },
+          select: { startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
+        }),
+      ]);
+      const occupied = sameDayActive.map(b => ({
+        startTime: b.startTime,
+        endTime: addMinutes(b.endTime, b.service.bufferMinutes),
+      }));
+      const check = checkSingleResourceSlot(blocks, service.duration, service.bufferMinutes, occupied, startTime);
+      if (check === "out_of_hours") throw new SlotUnavailableError();
+      if (check === "taken") throw new SlotTakenError();
     } else {
       // ---- Multi-profesional: asignar un profesional elegible y LIBRE en ese slot ----
       let candidates = activeStaff.filter(s => staffCanDoService(s.services.map(x => x.id), service.id));
@@ -241,6 +265,12 @@ export async function POST(
         { status: 409 }
       );
     }
+    if (error instanceof SlotUnavailableError) {
+      return NextResponse.json(
+        { error: "SLOT_UNAVAILABLE", message: "Ese horario no está disponible para reservar." },
+        { status: 400 }
+      );
+    }
     logError("[bookings]", error);
     return NextResponse.json(
       { error: "Error interno del servidor" },
@@ -252,6 +282,12 @@ export async function POST(
 class SlotTakenError extends Error {
   constructor() {
     super("slot_taken");
+  }
+}
+
+class SlotUnavailableError extends Error {
+  constructor() {
+    super("slot_unavailable");
   }
 }
 
