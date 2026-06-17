@@ -55,24 +55,28 @@ describe("canUseFeature", () => {
     expect(canUseFeature(free, "clientsCrm")).toBe(false);
     expect(canUseFeature(free, "reviews")).toBe(false);
     expect(canUseFeature(free, "retentionAnalytics")).toBe(false);
+    expect(canUseFeature(free, "multiStaff")).toBe(false);
   });
 
-  it("BASIC incluye operativas pero NO reseñas ni retención", () => {
+  it("BASIC incluye operativas pero NO reseñas, retención ni multi-profesional", () => {
     expect(canUseFeature(basic, "reminders")).toBe(true);
     expect(canUseFeature(basic, "export")).toBe(true);
     expect(canUseFeature(basic, "stats")).toBe(true);
     expect(canUseFeature(basic, "clientsCrm")).toBe(true);
     expect(canUseFeature(basic, "reviews")).toBe(false);
     expect(canUseFeature(basic, "retentionAnalytics")).toBe(false);
+    expect(canUseFeature(basic, "multiStaff")).toBe(false);
   });
 
   it("PRO incluye todo", () => {
     expect(canUseFeature(pro, "reviews")).toBe(true);
     expect(canUseFeature(pro, "retentionAnalytics")).toBe(true);
+    expect(canUseFeature(pro, "multiStaff")).toBe(true);
   });
 
   it("el trial habilita features PRO", () => {
     expect(canUseFeature({ plan: "FREE", planExpiry: null, trialEndsAt: future }, "reviews")).toBe(true);
+    expect(canUseFeature({ plan: "FREE", planExpiry: null, trialEndsAt: future }, "multiStaff")).toBe(true);
   });
 });
 

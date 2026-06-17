@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
-import { requireBusiness } from "@/lib/api-auth";
+import { requireBusiness, apiError } from "@/lib/api-auth";
+import { canUseFeature } from "@/lib/plan";
 import { StaffCreateSchema, formatZodErrors } from "@/lib/validations";
 
 const STAFF_SELECT = {
@@ -38,6 +39,15 @@ export async function POST(req: Request) {
     const ctx = await requireBusiness();
     if ("response" in ctx) return ctx.response;
     const { business } = ctx;
+
+    // Multi-profesional es feature PRO. No rompe a quien ya tenga staff (el motor
+    // sigue leyendo los profesionales existentes); solo frena agregar nuevos.
+    if (!canUseFeature(business, "multiStaff")) {
+      return apiError.planRequired(
+        "multiStaff",
+        "La gestión de profesionales está disponible en el plan PRO. Activá PRO para agregar tu equipo."
+      );
+    }
 
     let raw: unknown;
     try {

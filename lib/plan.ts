@@ -17,7 +17,8 @@ export type Feature =
   | "stats"               // métricas: ingresos, hora pico, top servicio
   | "clientsCrm"          // detalle/notas de cliente
   | "reviews"             // módulo de reseñas
-  | "retentionAnalytics"; // analítica de retención (clientes perdidos)
+  | "retentionAnalytics"  // analítica de retención (clientes perdidos)
+  | "multiStaff";         // gestión multi-profesional (agregar profesionales)
 
 /** Cantidad máxima de servicios en FREE. null = sin límite. */
 export const FREE_SERVICE_LIMIT = 2;
@@ -26,7 +27,7 @@ export const FREE_SERVICE_LIMIT = 2;
 const FEATURES: Record<PlanTier, ReadonlySet<Feature>> = {
   FREE: new Set<Feature>(),
   BASIC: new Set<Feature>(["reminders", "export", "stats", "clientsCrm"]),
-  PRO: new Set<Feature>(["reminders", "export", "stats", "clientsCrm", "reviews", "retentionAnalytics"]),
+  PRO: new Set<Feature>(["reminders", "export", "stats", "clientsCrm", "reviews", "retentionAnalytics", "multiStaff"]),
 };
 
 export interface PlanInfo {
