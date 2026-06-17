@@ -382,7 +382,7 @@ export default function SettingsPage() {
           {plan.tier === "FREE" && (
             <p className={styles.sectionSub} style={{ marginTop: 10, marginBottom: 0 }}>
               Activá un plan para recordatorios automáticos por WhatsApp, export de CSV, métricas y más.{" "}
-              <a href="mailto:hola@agendapy.com?subject=Quiero contratar el plan" style={{ color: "#f59e0b", fontWeight: 700, textDecoration: "none" }}>
+              <a href="mailto:hola@agendapy.com.py?subject=Quiero contratar el plan" style={{ color: "#f59e0b", fontWeight: 700, textDecoration: "none" }}>
                 Contratar plan
               </a>
             </p>

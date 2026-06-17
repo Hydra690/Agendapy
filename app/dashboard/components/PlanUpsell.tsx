@@ -17,7 +17,7 @@ export default function PlanUpsell({ title, message }: { title: string; message:
         {message}
       </p>
       <a
-        href="mailto:hola@agendapy.com?subject=Quiero contratar el plan"
+        href="mailto:hola@agendapy.com.py?subject=Quiero contratar el plan"
         style={{
           background: "#f59e0b",
           color: "#fff",

@@ -8,13 +8,14 @@
 //   1. Comprar el dominio y agregarlo en Resend (Domains → Add Domain).
 //   2. Cargar los registros DNS que da Resend (SPF + DKIM, opcional DMARC).
 //   3. Setear EMAIL_FROM con una casilla de ESE dominio (ej. "Agendapy <turnos@tudominio.com>").
-// El default de abajo (agendapy.com) NO está verificado: con una API key real
-// Resend rechazará el envío (lo verás como fallo, ya no como éxito silencioso).
+// El default de abajo (agendapy.com.py) todavía NO está verificado en Resend: con
+// una API key real Resend rechazará el envío hasta cargar los DNS (SPF + DKIM) del
+// dominio (lo verás como fallo, ya no como éxito silencioso).
 
 import { logError, logInfo, logWarn } from "@/lib/logger";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const DEFAULT_EMAIL_FROM = "Agendapy <no-reply@agendapy.com>";
+const DEFAULT_EMAIL_FROM = "Agendapy <no-reply@agendapy.com.py>";
 const EMAIL_FROM = process.env.EMAIL_FROM || DEFAULT_EMAIL_FROM;
 const usingUnverifiedDefault = !process.env.EMAIL_FROM;
 let warnedDefaultFrom = false;

@@ -120,7 +120,7 @@ export default function LandingPage() {
               {
                 n: "3",
                 title: "Compartí tu link",
-                desc: "Tu URL personalizada como agendapy.com/tu-negocio está lista para compartir con tus clientes.",
+                desc: "Tu URL personalizada como agendapy.com.py/tu-negocio está lista para compartir con tus clientes.",
               },
             ].map((step) => (
               <div key={step.n} className={styles.stepCard}>

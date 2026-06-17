@@ -127,7 +127,7 @@ export default function OnboardingPage() {
           />
           {slug && (
             <div style={S.slugPreview}>
-              agendapy.com/<strong>{slug}</strong>
+              agendapy.com.py/<strong>{slug}</strong>
             </div>
           )}
           {slugError && <div style={{ ...S.error, marginTop: -8, marginBottom: 16 }}>{slugError}</div>}
