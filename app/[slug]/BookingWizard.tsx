@@ -148,7 +148,6 @@ export default function BookingPage() {
   const [selectedService, setSelectedService] = useState<Service | null>(null);
   const [selectedDate, setSelectedDate] = useState("");
   const [dateError, setDateError] = useState<string | null>(null);
-  const [dayClosedError, setDayClosedError] = useState(false);
   const [slots, setSlots] = useState<string[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [noSlots, setNoSlots] = useState(false);
@@ -260,7 +259,6 @@ export default function BookingPage() {
     setSelectedService(null);
     setSelectedDate("");
     setDateError(null);
-    setDayClosedError(false);
     setSlots([]);
     setNoSlots(false);
     setBlockedReason(null);
@@ -622,11 +620,10 @@ export default function BookingPage() {
                 value={selectedDate}
                 onChange={(e) => {
                   const val = e.target.value;
-                  if (!val) { setDateError(null); setDayClosedError(false); setSelectedDate(""); return; }
+                  if (!val) { setDateError(null); setSelectedDate(""); return; }
                   setSelectedDate(val);
                   if (val < todayISO()) {
                     setDateError("No podés reservar para una fecha pasada.");
-                    setDayClosedError(false);
                     setSlots([]); setNoSlots(false); setSelectedSlot(null);
                     return;
                   }
@@ -635,12 +632,10 @@ export default function BookingPage() {
                   const dayEnum = JS_DAY_TO_ENUM[jsDay];
                   if (!activeDays.has(dayEnum)) {
                     setDateError("El negocio no atiende ese día.");
-                    setDayClosedError(true);
                     setSlots([]); setNoSlots(false); setSelectedSlot(null);
                     return;
                   }
                   setDateError(null);
-                  setDayClosedError(false);
                   setSubmitError(null);
                 }}
               />
