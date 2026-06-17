@@ -6,14 +6,31 @@
 // Sin la env, el comportamiento es idéntico al anterior: solo console.
 //
 // A diferencia de antes, la entrega al sink NO se silencia: si falla (timeout, 4xx/5xx,
-// red), se loguea a consola (sin re-enviar al sink, para no entrar en loop). Sigue
-// siendo fire-and-forget para no bloquear el request.
+// red), se loguea a consola (sin re-enviar al sink, para no entrar en loop). No bloquea
+// el request: en serverless el envío se registra con `waitUntil` para que la plataforma
+// no congele la función antes de que termine (ver getWaitUntil).
 
 const SINK_URL = process.env.LOG_SINK_URL;
 const SINK_TOKEN = process.env.LOG_SINK_TOKEN;
 const SINK_TIMEOUT_MS = 3000;
 
 type Level = "error" | "info" | "warn";
+
+type WaitUntil = (promise: Promise<unknown>) => void;
+
+/**
+ * Obtiene `waitUntil` del contexto de request de Next (el mismo primitivo que usa
+ * `after`), leyendo el global que Next expone — sin importar `next/server`, para no
+ * arrastrar esa dependencia a los tests/scripts que importan este módulo en node.
+ * En Vercel extiende la vida de la función serverless hasta que el envío termine.
+ * Fuera de un request (dev, scripts, build) devuelve undefined → fire-and-forget.
+ */
+function getWaitUntil(): WaitUntil | undefined {
+  const ctx = (globalThis as Record<symbol, unknown>)[Symbol.for("@next/request-context")] as
+    | { get?: () => { waitUntil?: WaitUntil } | undefined }
+    | undefined;
+  return ctx?.get?.()?.waitUntil;
+}
 
 export type SinkFormat = "json" | "slack" | "discord";
 
@@ -53,7 +70,12 @@ function emit(level: Level, payload: Record<string, unknown>) {
 
   // Solo mandamos errores/warns al sink para no inundarlo con info.
   if (SINK_URL && level !== "info") {
-    void shipToSink(SINK_URL, record);
+    const promise = shipToSink(SINK_URL, record);
+    // En serverless, registrar el envío con waitUntil evita que Vercel congele la
+    // función tras responder y se pierda la alerta. Sin contexto: fire-and-forget.
+    const waitUntil = getWaitUntil();
+    if (waitUntil) waitUntil(promise);
+    else void promise;
   }
 }
 
