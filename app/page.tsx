@@ -119,11 +119,11 @@ export default function LandingPage() {
         <div className={styles.heroInner}>
           <span className={styles.heroBadge}>Para negocios en Paraguay 🇵🇾</span>
           <h1 className={styles.heroTitle}>
-            Reservas online<br />para tu negocio
+            Tus clientes reservan solos.<br />Vos trabajás tranquilo.
           </h1>
           <p className={styles.heroSub}>
-            Creá tu página de turnos en minutos. Tus clientes reservan solos —
-            vos te enfocás en trabajar.
+            Creá tu página de turnos en minutos y recibí reservas por WhatsApp,
+            sin llamadas ni idas y vueltas para coordinar.
           </p>
           <div className={styles.heroActions}>
             <Link href="/register" className={styles.btnPrimary}>Empezar gratis →</Link>
@@ -192,7 +192,7 @@ export default function LandingPage() {
         <div className={styles.container}>
           <h2 className={styles.sectionTitle}>Todo lo que necesitás</h2>
           <p className={styles.sectionSub}>
-            Una solución completa para gestionar los turnos de tu negocio.
+            Funciones pensadas para que llenes tu agenda y no pierdas ni un turno.
           </p>
           <div className={styles.featGrid}>
             {FEATURES.map((f) => (
@@ -249,9 +249,9 @@ export default function LandingPage() {
       {/* CTA */}
       <section className={styles.ctaSection}>
         <div className={styles.container}>
-          <h2 className={styles.ctaTitle}>¿Listo para recibir reservas?</h2>
+          <h2 className={styles.ctaTitle}>Empezá a llenar tu agenda hoy</h2>
           <p className={styles.ctaSub}>
-            Creá tu cuenta gratis y empezá a recibir turnos hoy mismo.
+            Creá tu cuenta gratis en 5 minutos. Sin tarjeta, sin compromiso.
           </p>
           <Link href="/register" className={styles.btnPrimaryLg}>
             Crear cuenta gratis →
