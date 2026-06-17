@@ -10,23 +10,76 @@ const jakarta = Plus_Jakarta_Sans({
 const FEATURES = [
   {
     icon: "📅",
-    title: "Reservas en tiempo real",
-    desc: "Tus clientes reservan desde su celular, sin llamadas ni mensajes de WhatsApp para coordinar.",
+    title: "Reservas online 24/7",
+    desc: "Tus clientes reservan desde el celular a cualquier hora, sin llamadas ni idas y vueltas por WhatsApp.",
+  },
+  {
+    icon: "👥",
+    title: "Agenda por profesional",
+    desc: "Cada persona de tu equipo tiene su propia agenda y servicios. El cliente elige con quién o deja que asignemos a quien esté libre.",
+  },
+  {
+    icon: "🔔",
+    title: "Recordatorios por WhatsApp",
+    desc: "Aviso automático al cliente 24 h antes del turno y notificación a vos en cada reserva nueva. Menos ausencias.",
   },
   {
     icon: "⚙️",
     title: "Tu panel de control",
-    desc: "Gestioná servicios, horarios y reservas desde un dashboard simple y fácil de usar.",
+    desc: "Gestioná servicios, horarios, turnos partidos y días bloqueados desde un dashboard simple y fácil de usar.",
+  },
+  {
+    icon: "⭐",
+    title: "Reseñas y métricas",
+    desc: "Recibí reseñas de tus clientes y mirá tus números: ingresos, hora pico y servicio más pedido.",
   },
   {
     icon: "🔗",
     title: "Tu página personalizada",
-    desc: "Cada negocio recibe su propia URL pública, lista para compartir en redes o WhatsApp.",
+    desc: "Cada negocio recibe su URL pública (agendapy.com.py/tu-negocio), lista para compartir en redes o WhatsApp.",
+  },
+];
+
+const PLANS = [
+  {
+    name: "Free",
+    price: "Gs. 0",
+    priceNote: "Para siempre",
+    featured: false,
+    cta: { label: "Empezar gratis", href: "/register" },
+    features: [
+      "Reservas online ilimitadas",
+      "Tu página pública personalizada",
+      "Panel de control",
+      "Hasta 2 servicios",
+      "Aviso de reservas por WhatsApp",
+    ],
   },
   {
-    icon: "📲",
-    title: "Integración con WhatsApp",
-    desc: "Tus clientes pueden contactarte directamente desde su reserva confirmada.",
+    name: "Basic",
+    price: "Consultá",
+    priceNote: "Todo lo de Free, y más",
+    featured: false,
+    cta: { label: "Consultar", href: "mailto:hola@agendapy.com.py?subject=Quiero el plan Basic" },
+    features: [
+      "Servicios ilimitados",
+      "Recordatorios automáticos 24 h",
+      "Métricas y estadísticas",
+      "Historial y notas de clientes",
+      "Exportá tus reservas a CSV",
+    ],
+  },
+  {
+    name: "Pro",
+    price: "Consultá",
+    priceNote: "Todo lo de Basic, y más",
+    featured: true,
+    cta: { label: "Consultar", href: "mailto:hola@agendapy.com.py?subject=Quiero el plan Pro" },
+    features: [
+      "Agenda multi-profesional (tu equipo)",
+      "Reseñas de clientes",
+      "Analítica de retención de clientes",
+    ],
   },
 ];
 
@@ -54,6 +107,7 @@ export default function LandingPage() {
             agenda<span className={styles.logoAccent}>py</span>
           </Link>
           <div className={styles.navRight}>
+            <a href="#planes" className={styles.navLogin}>Planes</a>
             <Link href="/login" className={styles.navLogin}>Iniciar sesión</Link>
             <Link href="/register" className={styles.navRegister}>Empezar gratis</Link>
           </div>
@@ -149,6 +203,46 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* PLANS */}
+      <section id="planes" className={styles.section}>
+        <div className={styles.container}>
+          <h2 className={styles.sectionTitle}>Planes para cada etapa</h2>
+          <p className={styles.sectionSub}>
+            Empezá gratis y pasá a un plan pago cuando tu negocio lo necesite.
+          </p>
+          <div className={styles.plansGrid}>
+            {PLANS.map((plan) => (
+              <div
+                key={plan.name}
+                className={`${styles.planCard} ${plan.featured ? styles.planCardFeatured : ""}`}
+              >
+                {plan.featured && <span className={styles.planBadge}>Más completo</span>}
+                <h3 className={styles.planName}>{plan.name}</h3>
+                <div className={styles.planPrice}>{plan.price}</div>
+                <p className={styles.planPriceNote}>{plan.priceNote}</p>
+                <ul className={styles.planFeatures}>
+                  {plan.features.map((feat) => (
+                    <li key={feat} className={styles.planFeature}>
+                      <span className={styles.planCheck}>✓</span> {feat}
+                    </li>
+                  ))}
+                </ul>
+                <a
+                  href={plan.cta.href}
+                  className={plan.featured ? styles.planCtaPrimary : styles.planCtaGhost}
+                >
+                  {plan.cta.label}
+                </a>
+              </div>
+            ))}
+          </div>
+          <p className={styles.plansNote}>
+            ¿Dudas sobre qué plan te conviene? Escribinos a{" "}
+            <a href="mailto:hola@agendapy.com.py" className={styles.plansLink}>hola@agendapy.com.py</a>
+          </p>
         </div>
       </section>
 

@@ -311,6 +311,142 @@
   margin: 0;
 }
 
+/* ---- PLANS ---- */
+.plansGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  max-width: 980px;
+  margin: 0 auto;
+  align-items: stretch;
+}
+
+.planCard {
+  position: relative;
+  background: #ffffff;
+  border: 1.5px solid #e8eaf0;
+  border-radius: 18px;
+  padding: 32px 26px;
+  display: flex;
+  flex-direction: column;
+}
+
+.planCardFeatured {
+  border-color: #00c48c;
+  border-width: 2px;
+  box-shadow: 0 12px 32px rgba(0, 196, 140, 0.12);
+}
+
+.planBadge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #00c48c;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 4px 14px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+.planName {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  margin: 0 0 8px;
+}
+
+.planPrice {
+  font-size: 1.9rem;
+  font-weight: 800;
+  color: #1a1a2e;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+
+.planPriceNote {
+  font-size: 0.82rem;
+  color: #b0b3c1;
+  margin: 4px 0 22px;
+}
+
+.planFeatures {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  flex: 1;
+}
+
+.planFeature {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  font-size: 0.88rem;
+  color: #4a4a6a;
+  line-height: 1.5;
+}
+
+.planCheck {
+  color: #00c48c;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.planCtaPrimary,
+.planCtaGhost {
+  display: block;
+  text-align: center;
+  padding: 12px 20px;
+  font-size: 0.92rem;
+  font-weight: 700;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.planCtaPrimary {
+  background: #00c48c;
+  color: #ffffff;
+}
+
+.planCtaPrimary:hover {
+  background: #009e71;
+}
+
+.planCtaGhost {
+  background: transparent;
+  color: #1a1a2e;
+  border: 2px solid #e8eaf0;
+}
+
+.planCtaGhost:hover {
+  border-color: #00c48c;
+  color: #009e71;
+}
+
+.plansNote {
+  text-align: center;
+  font-size: 0.86rem;
+  color: #4a4a6a;
+  margin: 40px 0 0;
+}
+
+.plansLink {
+  color: #00c48c;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.plansLink:hover {
+  text-decoration: underline;
+}
+
 /* ---- CTA ---- */
 .ctaSection {
   padding: 88px 5%;
@@ -395,6 +531,11 @@
 
   .featGrid {
     grid-template-columns: 1fr;
+  }
+
+  .plansGrid {
+    grid-template-columns: 1fr;
+    max-width: 420px;
   }
 
   .navLogin {
