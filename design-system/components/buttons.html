@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Botones · Agendapy</title>
+<style>
+  :root{ font-family: Arial, Helvetica, sans-serif; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; padding:32px; background:#fff; color:#1a1a2e; }
+  h1{ font-size:1.4rem; font-weight:800; letter-spacing:-.5px; margin:0 0 4px; }
+  .sub{ color:#4a4a6a; font-size:.9rem; margin:0 0 28px; }
+  .grid{ display:flex; flex-wrap:wrap; gap:14px; align-items:center; margin-bottom:26px; }
+  .groupLabel{ font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#b0b3c1; margin:0 0 12px; }
+
+  .btnPrimary{ padding:14px 30px; background:#00c48c; color:#fff; font-size:1rem; font-weight:700; border:none; border-radius:10px; cursor:pointer; }
+  .btnPrimaryLg{ padding:16px 40px; background:#00c48c; color:#fff; font-size:1.05rem; font-weight:700; border:none; border-radius:12px; cursor:pointer; }
+  .btnPrimaryHover{ padding:14px 30px; background:#009e71; color:#fff; font-size:1rem; font-weight:700; border:none; border-radius:10px; cursor:pointer; transform:translateY(-1px); }
+  .btnOutline{ padding:14px 30px; background:transparent; color:#1a1a2e; font-size:1rem; font-weight:700; border:2px solid #e8eaf0; border-radius:10px; cursor:pointer; }
+  .btnSecondary{ padding:13px 24px; background:transparent; color:#1a1a2e; border:2px solid #e8eaf0; border-radius:10px; font-size:.95rem; font-weight:600; cursor:pointer; }
+  .whatsappBtn{ padding:14px 28px; background:#00c48c; color:#fff; border:none; border-radius:10px; font-size:1rem; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:8px; }
+  .btnDisabled{ padding:14px 30px; background:#00c48c; color:#fff; font-size:1rem; font-weight:700; border:none; border-radius:10px; opacity:.65; cursor:not-allowed; }
+  .backBtn{ background:none; border:none; color:#4a4a6a; font-size:.88rem; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:4px; }
+
+  .darkPanel{ background:#1a1a2e; border-radius:14px; padding:22px; display:flex; gap:14px; flex-wrap:wrap; }
+  .btnOutlineLight{ padding:13px 24px; background:transparent; color:#fff; border:2px solid rgba(255,255,255,.35); border-radius:10px; font-size:.95rem; font-weight:600; cursor:pointer; }
+</style>
+</head>
+<body>
+  <h1>Botones</h1>
+  <p class="sub">Verde de marca para acción primaria; outline para secundaria.</p>
+
+  <p class="groupLabel">Primario</p>
+  <div class="grid">
+    <button class="btnPrimary">Reservar turno</button>
+    <button class="btnPrimaryHover">Hover (#009E71)</button>
+    <button class="btnPrimaryLg">Empezar gratis</button>
+    <button class="btnDisabled" disabled>Procesando…</button>
+  </div>
+
+  <p class="groupLabel">Secundario</p>
+  <div class="grid">
+    <button class="btnOutline">Ver más</button>
+    <button class="btnSecondary">Volver</button>
+    <button class="backBtn">← Atrás</button>
+  </div>
+
+  <p class="groupLabel">Especiales</p>
+  <div class="grid">
+    <button class="whatsappBtn">Confirmar por WhatsApp</button>
+  </div>
+
+  <p class="groupLabel">Sobre fondo oscuro</p>
+  <div class="darkPanel">
+    <button class="btnPrimaryLg">Crear mi agenda</button>
+    <button class="btnOutlineLight">Ver demo</button>
+  </div>
+</body>
+</html>

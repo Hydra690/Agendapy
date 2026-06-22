@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inputs · Agendapy</title>
+<style>
+  :root{ font-family: Arial, Helvetica, sans-serif; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; padding:32px; background:#fff; color:#1a1a2e; max-width:520px; }
+  h1{ font-size:1.4rem; font-weight:800; letter-spacing:-.5px; margin:0 0 4px; }
+  .sub{ color:#4a4a6a; font-size:.9rem; margin:0 0 28px; }
+  .formGroup{ margin-bottom:18px; }
+  .inputLabel{ display:block; font-size:.85rem; font-weight:600; color:#1a1a2e; margin-bottom:8px; }
+  .inputField{ width:100%; padding:12px 16px; border:1.5px solid #e8eaf0; border-radius:10px; font-size:.95rem; color:#1a1a2e; background:#fff; outline:none; font-family:inherit; }
+  .inputField::placeholder{ color:#b0b3c1; }
+  .focused{ border-color:#00c48c; }
+  .textarea{ width:100%; padding:12px 16px; border:1.5px solid #e8eaf0; border-radius:10px; font-size:.95rem; color:#1a1a2e; min-height:80px; line-height:1.5; resize:vertical; font-family:inherit; outline:none; }
+  .hint{ font-size:.72rem; color:#b0b3c1; margin-top:6px; }
+</style>
+</head>
+<body>
+  <h1>Inputs</h1>
+  <p class="sub">Borde 1.5px #E8EAF0 · radio 10px · foco en verde de marca.</p>
+
+  <div class="formGroup">
+    <label class="inputLabel">Nombre completo</label>
+    <input class="inputField" type="text" placeholder="Ej. María González">
+  </div>
+
+  <div class="formGroup">
+    <label class="inputLabel">Teléfono</label>
+    <input class="inputField focused" type="text" value="0981 234 567">
+    <div class="hint">Estado foco (border-color: #00C48C)</div>
+  </div>
+
+  <div class="formGroup">
+    <label class="inputLabel">Fecha</label>
+    <input class="inputField" type="date">
+  </div>
+
+  <div class="formGroup">
+    <label class="inputLabel">Nota para el negocio</label>
+    <textarea class="textarea" placeholder="Opcional…"></textarea>
+  </div>
+</body>
+</html>

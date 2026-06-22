@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Selector de horarios · Agendapy</title>
+<style>
+  :root{ font-family: Arial, Helvetica, sans-serif; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; padding:32px; background:#fff; color:#1a1a2e; max-width:480px; }
+  h1{ font-size:1.4rem; font-weight:800; letter-spacing:-.5px; margin:0 0 4px; }
+  .sub{ color:#4a4a6a; font-size:.9rem; margin:0 0 24px; }
+  .slotsLabel{ font-size:.78rem; font-weight:700; color:#4a4a6a; text-transform:uppercase; letter-spacing:.6px; margin-bottom:12px; }
+  .slotGrid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:24px; }
+  .slot{ border:1.5px solid #e8eaf0; border-radius:8px; padding:10px 4px; text-align:center; font-size:.85rem; font-weight:600; color:#4a4a6a; background:#fff; }
+  .slotHover{ border-color:#00c48c; color:#009e71; background:#f0fdf9; }
+  .slotSelected{ background:#e6faf4; border-color:#00c48c; color:#009e71; }
+  .slotSkeleton{ height:40px; border-radius:8px; background:linear-gradient(90deg,#f5f7fa 25%,#e8eaf0 50%,#f5f7fa 75%); background-size:200% 100%; animation:shimmer 1.2s infinite; }
+  @keyframes shimmer{ 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+  .groupLabel{ font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#b0b3c1; margin:0 0 12px; }
+</style>
+</head>
+<body>
+  <h1>Selector de horarios</h1>
+  <p class="sub">Grilla de 4 columnas: default, hover, seleccionado y carga.</p>
+
+  <div class="slotsLabel">Horarios disponibles</div>
+  <div class="slotGrid">
+    <div class="slot">09:00</div>
+    <div class="slot slotHover">09:30</div>
+    <div class="slot slotSelected">10:00</div>
+    <div class="slot">10:30</div>
+    <div class="slot">11:00</div>
+    <div class="slot">11:30</div>
+    <div class="slot">15:00</div>
+    <div class="slot">15:30</div>
+  </div>
+
+  <p class="groupLabel">Estado de carga</p>
+  <div class="slotGrid">
+    <div class="slotSkeleton"></div>
+    <div class="slotSkeleton"></div>
+    <div class="slotSkeleton"></div>
+    <div class="slotSkeleton"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Progreso de pasos · Agendapy</title>
+<style>
+  :root{ font-family: Arial, Helvetica, sans-serif; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; padding:32px; background:#fff; color:#1a1a2e; max-width:480px; }
+  h1{ font-size:1.4rem; font-weight:800; letter-spacing:-.5px; margin:0 0 4px; }
+  .sub{ color:#4a4a6a; font-size:.9rem; margin:0 0 28px; }
+  .groupLabel{ font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#b0b3c1; margin:0 0 12px; }
+  .stepProgress{ display:flex; gap:8px; margin-bottom:28px; align-items:center; }
+  .stepDot{ width:8px; height:8px; border-radius:50%; background:#e8eaf0; }
+  .stepDotActive{ width:28px; height:8px; border-radius:4px; background:#00c48c; }
+  .stepDotDone{ width:8px; height:8px; border-radius:50%; background:#00c48c; opacity:.35; }
+  .stepNumber{ width:46px; height:46px; background:#00c48c; color:#fff; border-radius:50%; font-size:1.15rem; font-weight:800; display:flex; align-items:center; justify-content:center; }
+  .numbers{ display:flex; gap:16px; }
+</style>
+</head>
+<body>
+  <h1>Progreso de pasos</h1>
+  <p class="sub">Puntos del wizard de reserva: hecho · activo · pendiente.</p>
+
+  <p class="groupLabel">Paso 2 de 4</p>
+  <div class="stepProgress">
+    <span class="stepDotDone"></span>
+    <span class="stepDotActive"></span>
+    <span class="stepDot"></span>
+    <span class="stepDot"></span>
+  </div>
+
+  <p class="groupLabel">Números (onboarding / cómo funciona)</p>
+  <div class="numbers">
+    <div class="stepNumber">1</div>
+    <div class="stepNumber">2</div>
+    <div class="stepNumber">3</div>
+  </div>
+</body>
+</html>

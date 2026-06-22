@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cards · Agendapy</title>
+<style>
+  :root{ font-family: Arial, Helvetica, sans-serif; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; padding:32px; background:#f5f7fa; color:#1a1a2e; }
+  h1{ font-size:1.4rem; font-weight:800; letter-spacing:-.5px; margin:0 0 4px; }
+  .sub{ color:#4a4a6a; font-size:.9rem; margin:0 0 28px; }
+  .groupLabel{ font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#b0b3c1; margin:0 0 12px; }
+  .lane{ display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:18px; margin-bottom:30px; align-items:start; }
+
+  /* Service card */
+  .serviceCard{ display:flex; align-items:center; justify-content:space-between; gap:16px; background:#fff; border:1.5px solid #e8eaf0; border-radius:14px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,.04); }
+  .serviceName{ font-size:1rem; font-weight:700; color:#1a1a2e; }
+  .serviceDuration{ font-size:.78rem; color:#4a4a6a; font-weight:500; margin-top:4px; }
+  .serviceRight{ display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+  .servicePrice{ font-size:.95rem; font-weight:700; color:#009e71; }
+  .serviceArrow{ font-size:1.1rem; color:#00c48c; }
+  .serviceHover{ border-color:#00c48c; box-shadow:0 4px 20px rgba(0,196,140,.12); }
+
+  /* Step / feature card */
+  .stepCard{ background:#fff; border:1.5px solid #e8eaf0; border-radius:16px; padding:30px 24px; text-align:center; }
+  .stepNumber{ width:46px; height:46px; background:#00c48c; color:#fff; border-radius:50%; font-size:1.15rem; font-weight:800; display:flex; align-items:center; justify-content:center; margin:0 auto 18px; }
+  .featCard{ background:#fff; border:1.5px solid #e8eaf0; border-radius:16px; padding:28px 24px; }
+  .featIcon{ font-size:1.9rem; margin-bottom:14px; }
+  .cardTitle{ font-size:1rem; font-weight:700; color:#1a1a2e; margin:0 0 10px; }
+  .cardDesc{ font-size:.88rem; color:#4a4a6a; line-height:1.65; margin:0; }
+
+  /* Summary box */
+  .summaryBox{ background:#fff; border:1.5px solid #e8eaf0; border-radius:14px; padding:18px 20px; }
+  .summaryRow{ display:flex; justify-content:space-between; gap:16px; padding:7px 0; border-bottom:1px solid #e8eaf0; }
+  .summaryRow:last-child{ border-bottom:none; padding-bottom:0; }
+  .summaryRow:first-child{ padding-top:0; }
+  .summaryKey{ font-size:.82rem; color:#4a4a6a; font-weight:500; }
+  .summaryVal{ font-size:.88rem; font-weight:600; color:#1a1a2e; text-align:right; }
+
+  /* Plan card */
+  .planCard{ position:relative; background:#fff; border:1.5px solid #e8eaf0; border-radius:18px; padding:32px 26px; }
+  .planCardFeatured{ border:2px solid #00c48c; box-shadow:0 12px 32px rgba(0,196,140,.12); }
+  .planBadge{ position:absolute; top:-12px; left:50%; transform:translateX(-50%); background:#00c48c; color:#fff; font-size:.72rem; font-weight:700; padding:4px 14px; border-radius:100px; white-space:nowrap; }
+  .planName{ font-size:1.15rem; font-weight:800; color:#1a1a2e; margin:0 0 8px; }
+  .planPrice{ font-size:1.9rem; font-weight:800; color:#1a1a2e; letter-spacing:-.5px; line-height:1.1; }
+  .planPriceNote{ font-size:.82rem; color:#b0b3c1; margin:4px 0 18px; }
+  .planFeatures{ list-style:none; padding:0; margin:0 0 22px; display:flex; flex-direction:column; gap:11px; }
+  .planFeature{ display:flex; gap:9px; font-size:.88rem; color:#4a4a6a; line-height:1.5; }
+  .planCheck{ color:#00c48c; font-weight:800; }
+  .planCta{ display:block; text-align:center; padding:12px 20px; font-size:.92rem; font-weight:700; border-radius:10px; background:#00c48c; color:#fff; }
+  .planCtaGhost{ display:block; text-align:center; padding:12px 20px; font-size:.92rem; font-weight:700; border-radius:10px; background:transparent; color:#1a1a2e; border:2px solid #e8eaf0; }
+</style>
+</head>
+<body>
+  <h1>Cards</h1>
+  <p class="sub">Superficies de la app: servicio, pasos, features, resumen y planes.</p>
+
+  <p class="groupLabel">Service card (default + hover)</p>
+  <div class="lane">
+    <div class="serviceCard">
+      <div><div class="serviceName">Corte de cabello</div><div class="serviceDuration">⏱ 30 min</div></div>
+      <div class="serviceRight"><span class="servicePrice">₲ 50.000</span><span class="serviceArrow">→</span></div>
+    </div>
+    <div class="serviceCard serviceHover">
+      <div><div class="serviceName">Corte + barba</div><div class="serviceDuration">⏱ 45 min</div></div>
+      <div class="serviceRight"><span class="servicePrice">₲ 80.000</span><span class="serviceArrow">→</span></div>
+    </div>
+  </div>
+
+  <p class="groupLabel">Step / feature card</p>
+  <div class="lane">
+    <div class="stepCard"><div class="stepNumber">1</div><h3 class="cardTitle">Elegí el servicio</h3><p class="cardDesc">El cliente ve tus servicios con precio y duración.</p></div>
+    <div class="featCard"><div class="featIcon">🔔</div><h3 class="cardTitle">Recordatorios</h3><p class="cardDesc">Avisos automáticos por WhatsApp para reducir ausencias.</p></div>
+  </div>
+
+  <p class="groupLabel">Resumen de reserva</p>
+  <div class="lane">
+    <div class="summaryBox">
+      <div class="summaryRow"><span class="summaryKey">Servicio</span><span class="summaryVal">Corte + barba</span></div>
+      <div class="summaryRow"><span class="summaryKey">Fecha</span><span class="summaryVal">Lun 22 jun · 10:00</span></div>
+      <div class="summaryRow"><span class="summaryKey">Total</span><span class="summaryVal">₲ 80.000</span></div>
+    </div>
+  </div>
+
+  <p class="groupLabel">Planes (default + destacado)</p>
+  <div class="lane">
+    <div class="planCard">
+      <h3 class="planName">Free</h3>
+      <div class="planPrice">₲ 0</div>
+      <div class="planPriceNote">por mes</div>
+      <ul class="planFeatures">
+        <li class="planFeature"><span class="planCheck">✓</span> 1 profesional</li>
+        <li class="planFeature"><span class="planCheck">✓</span> Reservas online</li>
+      </ul>
+      <a class="planCtaGhost">Empezar</a>
+    </div>
+    <div class="planCard planCardFeatured">
+      <span class="planBadge">Más popular</span>
+      <h3 class="planName">Pro</h3>
+      <div class="planPrice">₲ 120.000</div>
+      <div class="planPriceNote">por mes</div>
+      <ul class="planFeatures">
+        <li class="planFeature"><span class="planCheck">✓</span> Multi-profesional</li>
+        <li class="planFeature"><span class="planCheck">✓</span> Recordatorios WhatsApp</li>
+        <li class="planFeature"><span class="planCheck">✓</span> Reseñas de clientes</li>
+      </ul>
+      <a class="planCta">Probar Pro</a>
+    </div>
+  </div>
+</body>
+</html>

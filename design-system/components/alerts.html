@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Alertas y estados vacíos · Agendapy</title>
+<style>
+  :root{ font-family: Arial, Helvetica, sans-serif; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; padding:32px; background:#fff; color:#1a1a2e; max-width:520px; }
+  h1{ font-size:1.4rem; font-weight:800; letter-spacing:-.5px; margin:0 0 4px; }
+  .sub{ color:#4a4a6a; font-size:.9rem; margin:0 0 24px; }
+  .groupLabel{ font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#b0b3c1; margin:18px 0 10px; }
+
+  .errorMsg{ background:#fff0f0; border:1px solid #ffcccc; color:#cc0000; border-radius:10px; padding:12px 16px; font-size:.88rem; font-weight:500; line-height:1.4; }
+  .blockedMsg{ text-align:center; padding:20px 16px; color:#92400e; font-size:.9rem; font-weight:500; background:#fffbeb; border:1px solid #fcd34d; border-radius:10px; line-height:1.5; }
+  .emptyMsg{ text-align:center; padding:32px 16px; color:#4a4a6a; font-size:.9rem; background:#f5f7fa; border-radius:12px; }
+  .noServicesCard{ text-align:center; padding:52px 24px; background:#fff; border:1.5px solid #e8eaf0; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,.06); }
+  .noServicesIcon{ font-size:3rem; margin-bottom:16px; }
+  .noServicesTitle{ font-size:1.2rem; font-weight:800; color:#1a1a2e; margin:0 0 10px; }
+  .noServicesMsg{ color:#4a4a6a; font-size:.9rem; line-height:1.6; margin:0; }
+</style>
+</head>
+<body>
+  <h1>Alertas y estados vacíos</h1>
+  <p class="sub">Mensajería de error, advertencia y ausencia de datos.</p>
+
+  <p class="groupLabel">Error</p>
+  <div class="errorMsg">No pudimos confirmar el turno. Revisá los datos e intentá de nuevo.</div>
+
+  <p class="groupLabel">Advertencia / día bloqueado</p>
+  <div class="blockedMsg">El negocio no toma reservas este día. Probá con otra fecha.</div>
+
+  <p class="groupLabel">Vacío (inline)</p>
+  <div class="emptyMsg">No hay turnos para mostrar todavía.</div>
+
+  <p class="groupLabel">Vacío (card grande)</p>
+  <div class="noServicesCard">
+    <div class="noServicesIcon">📅</div>
+    <h2 class="noServicesTitle">Sin servicios cargados</h2>
+    <p class="noServicesMsg">Este negocio aún no publicó servicios para reservar.</p>
+  </div>
+</body>
+</html>

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Badges y pills · Agendapy</title>
+<style>
+  :root{ font-family: Arial, Helvetica, sans-serif; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; padding:32px; background:#fff; color:#1a1a2e; }
+  h1{ font-size:1.4rem; font-weight:800; letter-spacing:-.5px; margin:0 0 4px; }
+  .sub{ color:#4a4a6a; font-size:.9rem; margin:0 0 28px; }
+  .grid{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; margin-bottom:24px; }
+  .groupLabel{ font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#b0b3c1; margin:0 0 12px; }
+
+  .heroBadge{ background:#e6faf4; color:#009e71; padding:5px 16px; border-radius:100px; font-size:.82rem; font-weight:700; letter-spacing:.3px; }
+  .categoryBadge{ background:#e6faf4; color:#009e71; padding:3px 12px; border-radius:100px; font-size:.75rem; font-weight:700; letter-spacing:.3px; }
+  .planBadge{ background:#00c48c; color:#fff; font-size:.72rem; font-weight:700; letter-spacing:.3px; padding:4px 14px; border-radius:100px; }
+  .statusPending{ background:#fff9e6; color:#a06000; padding:2px 10px; border-radius:100px; font-size:.75rem; font-weight:700; }
+  .statusConfirmed{ background:#e6faf4; color:#009e71; padding:2px 10px; border-radius:100px; font-size:.72rem; font-weight:700; }
+  .catChip{ padding:6px 14px; background:#f5f7fa; border:1.5px solid #e8eaf0; border-radius:100px; font-size:.82rem; font-weight:600; color:#4a4a6a; }
+  .selectedServiceTag{ display:inline-flex; align-items:center; gap:10px; background:#e6faf4; border:1px solid #00c48c; color:#009e71; padding:8px 14px; border-radius:100px; font-size:.85rem; font-weight:600; }
+  .selectedServiceTag .dur{ opacity:.75; font-weight:500; }
+</style>
+</head>
+<body>
+  <h1>Badges y pills</h1>
+  <p class="sub">Cápsulas de 100px de radio para etiquetas, estados y chips.</p>
+
+  <p class="groupLabel">Marca / destacados</p>
+  <div class="grid">
+    <span class="heroBadge">★ Reservas 24/7</span>
+    <span class="categoryBadge">Barbería</span>
+    <span class="planBadge">Más popular</span>
+  </div>
+
+  <p class="groupLabel">Estados de turno</p>
+  <div class="grid">
+    <span class="statusPending">Pendiente</span>
+    <span class="statusConfirmed">Confirmado</span>
+  </div>
+
+  <p class="groupLabel">Chips de categoría</p>
+  <div class="grid">
+    <span class="catChip">Peluquería</span>
+    <span class="catChip">Estética</span>
+    <span class="catChip">Spa</span>
+    <span class="catChip">Consultorio</span>
+  </div>
+
+  <p class="groupLabel">Servicio seleccionado</p>
+  <div class="grid">
+    <span class="selectedServiceTag">Corte + barba <span class="dur">· 45 min</span></span>
+  </div>
+</body>
+</html>

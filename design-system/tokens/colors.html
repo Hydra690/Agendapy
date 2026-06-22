@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colores · Agendapy</title>
+<style>
+  :root{ font-family: Arial, Helvetica, sans-serif; }
+  *{ box-sizing:border-box; }
+  body{ margin:0; padding:32px; background:#fff; color:#1a1a2e; }
+  h1{ font-size:1.4rem; font-weight:800; letter-spacing:-.5px; margin:0 0 4px; }
+  .sub{ color:#4a4a6a; font-size:.9rem; margin:0 0 28px; }
+  .group{ margin-bottom:28px; }
+  .groupLabel{ font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.8px; color:#b0b3c1; margin:0 0 12px; }
+  .swatches{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:14px; }
+  .swatch{ border:1.5px solid #e8eaf0; border-radius:12px; overflow:hidden; background:#fff; }
+  .chip{ height:64px; }
+  .meta{ padding:10px 12px; }
+  .name{ font-size:.82rem; font-weight:700; color:#1a1a2e; }
+  .hex{ font-size:.75rem; color:#4a4a6a; font-variant-numeric:tabular-nums; margin-top:2px; }
+  .ring{ box-shadow:inset 0 0 0 1.5px #e8eaf0; }
+</style>
+</head>
+<body>
+  <h1>Colores</h1>
+  <p class="sub">Paleta extraída de la app: marca, neutrales y estados.</p>
+
+  <div class="group">
+    <p class="groupLabel">Marca</p>
+    <div class="swatches">
+      <div class="swatch"><div class="chip" style="background:#00c48c"></div><div class="meta"><div class="name">Green / primary</div><div class="hex">#00C48C</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#009e71"></div><div class="meta"><div class="name">Green / hover</div><div class="hex">#009E71</div></div></div>
+      <div class="swatch"><div class="chip ring" style="background:#e6faf4"></div><div class="meta"><div class="name">Mint / tint</div><div class="hex">#E6FAF4</div></div></div>
+      <div class="swatch"><div class="chip ring" style="background:#f0fdf9"></div><div class="meta"><div class="name">Mint / hover bg</div><div class="hex">#F0FDF9</div></div></div>
+    </div>
+  </div>
+
+  <div class="group">
+    <p class="groupLabel">Neutrales</p>
+    <div class="swatches">
+      <div class="swatch"><div class="chip" style="background:#1a1a2e"></div><div class="meta"><div class="name">Ink / foreground</div><div class="hex">#1A1A2E</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#4a4a6a"></div><div class="meta"><div class="name">Muted</div><div class="hex">#4A4A6A</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#b0b3c1"></div><div class="meta"><div class="name">Faint / placeholder</div><div class="hex">#B0B3C1</div></div></div>
+      <div class="swatch"><div class="chip ring" style="background:#e8eaf0"></div><div class="meta"><div class="name">Border</div><div class="hex">#E8EAF0</div></div></div>
+      <div class="swatch"><div class="chip ring" style="background:#f5f7fa"></div><div class="meta"><div class="name">Surface</div><div class="hex">#F5F7FA</div></div></div>
+      <div class="swatch"><div class="chip ring" style="background:#ffffff"></div><div class="meta"><div class="name">White</div><div class="hex">#FFFFFF</div></div></div>
+    </div>
+  </div>
+
+  <div class="group">
+    <p class="groupLabel">Estados</p>
+    <div class="swatches">
+      <div class="swatch"><div class="chip ring" style="background:#fffbeb"></div><div class="meta"><div class="name">Warning / bg</div><div class="hex">#FFFBEB · txt #92400E</div></div></div>
+      <div class="swatch"><div class="chip ring" style="background:#fff9e6"></div><div class="meta"><div class="name">Pending / bg</div><div class="hex">#FFF9E6 · txt #A06000</div></div></div>
+      <div class="swatch"><div class="chip ring" style="background:#fff0f0"></div><div class="meta"><div class="name">Error / bg</div><div class="hex">#FFF0F0 · txt #CC0000</div></div></div>
+      <div class="swatch"><div class="chip" style="background:#1a1a2e"></div><div class="meta"><div class="name">Dark section</div><div class="hex">#1A1A2E</div></div></div>
+    </div>
+  </div>
+</body>
+</html>
