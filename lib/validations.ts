@@ -11,6 +11,15 @@ export const BookingSchema = z.object({
   clientWhatsapp: z
     .string()
     .regex(/^\d{7,15}$/, "clientWhatsapp debe contener solo dígitos (7-15 caracteres)"),
+  // Email opcional del cliente: habilita la confirmación por email (canal aparte del
+  // WhatsApp). "" → undefined para no guardar strings vacíos en el cliente.
+  clientEmail: z
+    .string()
+    .trim()
+    .email("Email inválido")
+    .max(120)
+    .optional()
+    .or(z.literal("").transform(() => undefined)),
   notes: z.string().max(500).optional(),
 });
 

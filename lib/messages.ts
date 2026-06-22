@@ -39,6 +39,24 @@ export function ownerCancellationMessage(b: OwnerBookingMessage): string {
   );
 }
 
+/** Confirmación al cliente apenas reserva (la reserva queda en estado PENDING). */
+export function clientConfirmationMessage(b: {
+  clientName: string;
+  businessName: string;
+  serviceName: string;
+  fechaLegible: string;
+  startTime: string;
+  manageUrl?: string | null;
+}): string {
+  return (
+    `✅ Hola ${b.clientName}! Tu reserva en *${b.businessName}* quedó registrada:\n\n` +
+    `🛠️ ${b.serviceName}\n` +
+    `📅 ${b.fechaLegible} a las ${b.startTime} hs\n\n` +
+    `Estado: pendiente de confirmación del negocio.` +
+    (b.manageUrl ? `\n\nGestioná o cancelá tu reserva acá:\n${b.manageUrl}` : "")
+  );
+}
+
 /** Recordatorio al cliente 24h antes del turno. */
 export function clientReminderMessage(b: {
   clientName: string;

@@ -4,13 +4,15 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { BookingSchema, formatZodErrors } from "@/lib/validations";
 import { logError } from "@/lib/logger";
-import { notifyWhatsApp } from "@/lib/notify";
+import { notifyWhatsApp, notifyEmail } from "@/lib/notify";
+import { sendBookingConfirmationEmail } from "@/lib/email";
 import { parseDateUTC, addMinutes, dateToISODate } from "@/lib/date";
 import { todayInTz, meetsBookingNotice } from "@/lib/timezone";
 import { checkSingleResourceSlot, staffCanDoService, dayOfWeekUTC, pickAvailableStaff, buildStaffSchedule } from "@/lib/booking";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/constants";
-import { ownerNewBookingMessage } from "@/lib/messages";
+import { ownerNewBookingMessage, clientConfirmationMessage } from "@/lib/messages";
 import { formatDayMonth } from "@/lib/format";
+import { appBaseUrl } from "@/lib/url";
 
 // NOTA: el listado de reservas por fecha es información sensible (PII de clientes)
 // y vive solo en el dashboard autenticado: GET /api/dashboard/bookings.
@@ -48,7 +50,7 @@ export async function POST(
       );
     }
 
-    const { serviceId, staffId, date: dateParam, startTime, clientName, clientWhatsapp, notes } = parsed.data;
+    const { serviceId, staffId, date: dateParam, startTime, clientName, clientWhatsapp, clientEmail, notes } = parsed.data;
 
     const bookingDate = parseDateUTC(dateParam);
     if (!bookingDate) {
@@ -121,7 +123,7 @@ export async function POST(
     // Upsert del cliente por whatsapp+negocio (idempotente; carrera cubierta por
     // el unique businessId_whatsapp → reintento de lectura). Va FUERA de la
     // transacción de slot: no es parte de la invariante de disponibilidad.
-    const client = await upsertClient(business.id, clientWhatsapp, clientName.trim());
+    const client = await upsertClient(business.id, clientWhatsapp, clientName.trim(), clientEmail);
 
     // Asignación de profesional + chequeo de disponibilidad + creación, ATÓMICO.
     // El índice único parcial (Booking_active_slot_unique, COALESCE) garantiza la
@@ -212,7 +214,7 @@ export async function POST(
               },
               include: {
                 service: { select: { id: true, name: true, duration: true, price: true } },
-                client: { select: { id: true, name: true, whatsapp: true } },
+                client: { select: { id: true, name: true, whatsapp: true, email: true } },
               },
             });
           } catch (e) {
@@ -227,9 +229,15 @@ export async function POST(
       )
     );
 
-    // Notificar al dueño por WhatsApp (fire-and-forget, con registro persistido)
+    // ── Notificaciones (no bloqueantes; cada intento se persiste en BookingNotification) ──
+    // fechaLegible y el link de gestión se comparten entre los avisos.
+    const fechaLegible = formatDayMonth(dateToISODate(booking.date as Date));
+    const manageUrl = booking.manageToken
+      ? `${appBaseUrl()}/turno/${booking.manageToken}`
+      : null;
+
+    // Aviso al dueño (si configuró su WhatsApp).
     if (business.whatsapp) {
-      const fechaLegible = formatDayMonth(dateToISODate(booking.date as Date));
       const ownerMsg = ownerNewBookingMessage({
         businessName: business.name,
         clientName: booking.client.name,
@@ -255,6 +263,56 @@ export async function POST(
               },
             }
           : undefined,
+      });
+    }
+
+    // Confirmación al cliente por WhatsApp (el WhatsApp del cliente es obligatorio al
+    // reservar). Sin Twilio, notifyWhatsApp registra el intento como fallido, no éxito.
+    if (booking.client.whatsapp) {
+      const clientMsg = clientConfirmationMessage({
+        clientName: booking.client.name,
+        businessName: business.name,
+        serviceName: booking.service.name,
+        fechaLegible,
+        startTime: booking.startTime,
+        manageUrl,
+      });
+      const confirmationSid = process.env.TWILIO_TEMPLATE_CONFIRMATION_SID;
+      void notifyWhatsApp({
+        bookingId: booking.id,
+        to: booking.client.whatsapp,
+        body: clientMsg,
+        type: "CONFIRMATION",
+        options: confirmationSid
+          ? {
+              contentSid: confirmationSid,
+              contentVariables: {
+                "1": booking.client.name,
+                "2": business.name,
+                "3": booking.service.name,
+                "4": `${fechaLegible} ${booking.startTime}`,
+              },
+            }
+          : undefined,
+      });
+    }
+
+    // Confirmación al cliente por email (solo si dejó email). Sin RESEND_API_KEY,
+    // notifyEmail registra el intento como no-enviado (modo dev), nunca como éxito.
+    if (booking.client.email) {
+      const clientEmailAddr = booking.client.email;
+      void notifyEmail({
+        bookingId: booking.id,
+        type: "CONFIRMATION",
+        send: () =>
+          sendBookingConfirmationEmail(clientEmailAddr, {
+            clientName: booking.client.name,
+            businessName: business.name,
+            serviceName: booking.service.name,
+            fechaLegible,
+            startTime: booking.startTime,
+            manageUrl,
+          }),
       });
     }
 
@@ -371,13 +429,20 @@ async function withSerializableRetry<T>(fn: () => Promise<T>, maxAttempts = 3): 
 // Encuentra el cliente por (negocio, whatsapp) o lo crea. Si dos requests del
 // mismo cliente corren a la vez, el unique businessId_whatsapp hace fallar el
 // create con P2002 y reintentamos la lectura (el cliente ya existe).
-async function upsertClient(businessId: string, whatsapp: string, name: string) {
+async function upsertClient(businessId: string, whatsapp: string, name: string, email?: string) {
   const existing = await prisma.client.findUnique({
     where: { businessId_whatsapp: { businessId, whatsapp } },
   });
-  if (existing) return existing;
+  if (existing) {
+    // Si el cliente ya existía sin email y ahora lo dejó, lo completamos (no pisamos
+    // un email previo: el dueño puede haberlo curado a mano).
+    if (email && !existing.email) {
+      return prisma.client.update({ where: { id: existing.id }, data: { email } });
+    }
+    return existing;
+  }
   try {
-    return await prisma.client.create({ data: { name, whatsapp, businessId } });
+    return await prisma.client.create({ data: { name, whatsapp, email: email ?? null, businessId } });
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
       const c = await prisma.client.findUnique({

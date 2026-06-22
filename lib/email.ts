@@ -13,6 +13,7 @@
 // dominio (lo verás como fallo, ya no como éxito silencioso).
 
 import { logError, logInfo, logWarn } from "@/lib/logger";
+import { appBaseUrl as baseUrl } from "@/lib/url";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const DEFAULT_EMAIL_FROM = "Agendapy <no-reply@agendapy.com.py>";
@@ -79,13 +80,6 @@ export async function sendEmail(msg: EmailMessage): Promise<EmailResult> {
   return { delivered: true, mode: "sent" };
 }
 
-function baseUrl(): string {
-  return (
-    process.env.NEXTAUTH_URL ||
-    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "http://localhost:3000")
-  ).replace(/\/$/, "");
-}
-
 const wrap = (title: string, bodyHtml: string) =>
   `<div style="font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;color:#1A1A2E">
      <h2 style="color:#00C48C">${title}</h2>${bodyHtml}
@@ -127,6 +121,51 @@ export async function sendVerificationEmail(to: string, token: string): Promise<
     });
   } catch (e) {
     logError("[email] verify", e, { to });
+    throw e;
+  }
+}
+
+export interface BookingConfirmationData {
+  clientName: string;
+  businessName: string;
+  serviceName: string;
+  fechaLegible: string;
+  startTime: string;
+  manageUrl?: string | null;
+}
+
+/**
+ * Confirmación de reserva al cliente. Devuelve EmailResult: sin RESEND_API_KEY no
+ * envía de verdad (mode:"dev", delivered:false) — el caller registra el intento como
+ * no-enviado, nunca como éxito. Lanza si Resend rechaza (dominio sin verificar, etc.).
+ */
+export async function sendBookingConfirmationEmail(
+  to: string,
+  data: BookingConfirmationData
+): Promise<EmailResult> {
+  const manageLine = data.manageUrl
+    ? `\n\nGestioná o cancelá tu reserva: ${data.manageUrl}`
+    : "";
+  const manageHtml = data.manageUrl
+    ? `<p><a href="${data.manageUrl}" style="color:#00C48C">Gestionar mi reserva</a></p>`
+    : "";
+  try {
+    return await sendEmail({
+      to,
+      subject: `Tu reserva en ${data.businessName} — Agendapy`,
+      text:
+        `Hola ${data.clientName}! Tu reserva quedó registrada.\n\n` +
+        `${data.serviceName}\n${data.fechaLegible} a las ${data.startTime} hs\n` +
+        `Estado: pendiente de confirmación del negocio.${manageLine}`,
+      html: wrap(
+        "¡Reserva registrada!",
+        `<p>Hola ${data.clientName}, tu reserva quedó registrada:</p>
+         <p><strong>${data.serviceName}</strong><br>${data.fechaLegible} a las ${data.startTime} hs</p>
+         <p style="color:#8888aa">Estado: pendiente de confirmación del negocio.</p>${manageHtml}`
+      ),
+    });
+  } catch (e) {
+    logError("[email] booking confirmation", e, { to });
     throw e;
   }
 }

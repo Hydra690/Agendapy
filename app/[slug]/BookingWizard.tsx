@@ -162,6 +162,7 @@ export default function BookingPage() {
   // Form state
   const [clientName, setClientName] = useState("");
   const [clientWhatsapp, setClientWhatsapp] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -231,6 +232,7 @@ export default function BookingPage() {
           startTime: selectedSlot,
           clientName: clientName.trim(),
           clientWhatsapp: clientWhatsapp.trim(),
+          clientEmail: clientEmail.trim() || undefined,
           notes: notes.trim() || undefined,
         }),
       });
@@ -266,6 +268,7 @@ export default function BookingPage() {
     setSelectedStaffId(null);
     setClientName("");
     setClientWhatsapp("");
+    setClientEmail("");
     setNotes("");
     setSubmitError(null);
     setBookingResult(null);
@@ -783,6 +786,25 @@ export default function BookingPage() {
                   maxLength={15}
                   autoComplete="tel"
                 />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.inputLabel} htmlFor="clientEmail">
+                  Tu email (opcional)
+                </label>
+                <input
+                  id="clientEmail"
+                  type="email"
+                  className={styles.inputField}
+                  placeholder="Ej: juan@email.com"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                  autoComplete="email"
+                  maxLength={120}
+                />
+                <span style={{ fontSize: "0.78rem", color: "#8888aa", marginTop: 6, display: "block" }}>
+                  Si lo dejás, te enviamos la confirmación también por email.
+                </span>
               </div>
 
               <div className={styles.formGroup}>
