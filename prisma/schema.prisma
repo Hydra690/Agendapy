@@ -208,8 +208,9 @@ model Service {
   businessId  String
   business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
-  staff    Staff[]   @relation("StaffServices")
-  bookings Booking[]
+  staff           Staff[]          @relation("StaffServices")
+  bookings        Booking[] // reservas donde este servicio es el principal (Booking.serviceId)
+  bookingServices BookingService[] // reservas que incluyen este servicio (multi-servicio)
 }
 
 // =============================================================
@@ -284,7 +285,10 @@ model Booking {
   id            String        @id @default(cuid())
   date          DateTime      @db.Date
   startTime     String        // "10:00"
-  endTime       String        // "10:30"
+  endTime       String        // "10:30" (fin del turno = inicio + duración TOTAL de los servicios)
+  // Buffer efectivo del turno (snapshot). Multi-servicio: suma de los buffers de los
+  // servicios elegidos. La ocupación de la grilla es [startTime, endTime + bufferMinutes).
+  bufferMinutes Int           @default(0)
   status        BookingStatus @default(PENDING)
   notes         String?       // Notas del cliente al reservar
 
@@ -310,8 +314,12 @@ model Booking {
   businessId    String
   business      Business      @relation(fields: [businessId], references: [id])
 
+  // Servicio PRINCIPAL del turno (el primero elegido). La lista completa de servicios
+  // del turno vive en `services` (BookingService). Se conserva para compatibilidad:
+  // los read-sites que aún leen un solo servicio muestran el principal.
   serviceId     String
   service       Service       @relation(fields: [serviceId], references: [id])
+  services      BookingService[]
 
   clientId      String
   client        Client        @relation(fields: [clientId], references: [id])
@@ -336,6 +344,27 @@ model Booking {
   @@index([businessId, date])
   @@index([date, status, reminderSent])
   @@index([clientId])
+}
+
+// =============================================================
+// BOOKING SERVICE — Servicios incluidos en una reserva (N por turno)
+// La duración total del turno es la suma de las duraciones; el precio total, la suma
+// de los precios. Incluye al servicio principal (Booking.serviceId).
+// =============================================================
+
+model BookingService {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  bookingId String
+  booking   Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id])
+
+  @@unique([bookingId, serviceId]) // un servicio aparece a lo sumo una vez por reserva
+  @@index([bookingId])
+  @@index([serviceId])
 }
 
 // =============================================================
