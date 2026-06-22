@@ -26,7 +26,8 @@ export async function generateMetadata(
   const b = await getBusinessMeta(slug).catch(() => null);
 
   if (!b || !b.isActive) {
-    return { title: "Negocio no encontrado · Agendapy" };
+    // El layout raíz añade el sufijo "· Agendapy" vía title.template.
+    return { title: "Negocio no encontrado", robots: { index: false } };
   }
 
   const title = `${b.name} · Reservá tu turno online`;

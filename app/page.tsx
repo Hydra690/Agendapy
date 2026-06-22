@@ -1,11 +1,35 @@
 import Link from "next/link";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { PUBLIC_BASE_URL } from "@/lib/public-url";
 import styles from "./landing.module.css";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
 });
+
+// Structured data (schema.org). Modelamos Agendapy como SoftwareApplication con
+// oferta gratuita de entrada (price 0 PYG), que es lo que la página realmente
+// promete ("Empezar gratis"). No fijamos un precio de plan pago acá porque la UI
+// los muestra como "Consultá": el JSON-LD debe reflejar lo visible, no prometer
+// un número que la página no compromete.
+const SOFTWARE_JSONLD = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Agendapy",
+  applicationCategory: "BusinessApplication",
+  operatingSystem: "Web",
+  url: PUBLIC_BASE_URL,
+  inLanguage: "es-PY",
+  description:
+    "Software de turnos online para negocios de servicios en Paraguay: tus clientes reservan solos desde el celular y vos recibís el aviso por WhatsApp.",
+  offers: {
+    "@type": "Offer",
+    price: "0",
+    priceCurrency: "PYG",
+    description: "Plan Free para siempre. Planes pagos a consultar.",
+  },
+} as const;
 
 const FEATURES = [
   {
@@ -100,6 +124,12 @@ const CATEGORIES = [
 export default function LandingPage() {
   return (
     <div className={`${jakarta.className} ${styles.root}`}>
+      {/* Structured data para rich results de Google */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(SOFTWARE_JSONLD) }}
+      />
+
       {/* NAVBAR */}
       <nav className={styles.nav}>
         <div className={styles.navInner}>
