@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import styles from "./settings.module.css";
 import { usePlan } from "../usePlan";
 import { todayISO, formatDayMonthYear } from "@/lib/format";
+import ImageUploadField from "./ImageUploadField";
 
 const TIER_LABEL: Record<string, string> = { FREE: "Gratuito", BASIC: "Básico", PRO: "PRO" };
 
@@ -442,55 +443,20 @@ export default function SettingsPage() {
           />
         </div>
 
-        <div className={styles.formGroup}>
-          <label className={styles.formLabel}>Logo (URL de imagen)</label>
-          <input
-            className={styles.formInput}
-            type="url"
-            value={bizForm.logoUrl}
-            onChange={e => setBizForm(f => ({ ...f, logoUrl: e.target.value }))}
-            placeholder="https://ejemplo.com/logo.png"
-          />
-          {bizForm.logoUrl && (
-            <div className={styles.logoPreview}>
-              {/* URL remota arbitraria provista por el dueño: next/image exigiría
-                  remotePatterns con wildcard (vector SSRF + costo de optimizar
-                  dominios desconocidos). <img> es lo correcto acá. */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={bizForm.logoUrl}
-                alt="Logo preview"
-                className={styles.logoPreviewImg}
-                onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-            </div>
-          )}
-        </div>
+        <ImageUploadField
+          label="Logo"
+          variant="logo"
+          value={bizForm.logoUrl}
+          onChange={url => setBizForm(f => ({ ...f, logoUrl: url }))}
+        />
 
-        <div className={styles.formGroup}>
-          <label className={styles.formLabel}>Foto de portada (URL de imagen)</label>
-          <input
-            className={styles.formInput}
-            type="url"
-            value={bizForm.coverUrl}
-            onChange={e => setBizForm(f => ({ ...f, coverUrl: e.target.value }))}
-            placeholder="https://ejemplo.com/portada.jpg"
-          />
-          <span style={{ fontSize: "0.78rem", color: "#8888aa", marginTop: 4, display: "block" }}>
-            Se muestra como imagen de cabecera en tu página pública. Recomendado: 1200×400 px.
-          </span>
-          {bizForm.coverUrl && (
-            <div className={styles.logoPreview} style={{ borderRadius: 8, overflow: "hidden", marginTop: 8 }}>
-              {/* eslint-disable-next-line @next/next/no-img-element -- URL remota arbitraria del dueño (ver nota en el preview de logo) */}
-              <img
-                src={bizForm.coverUrl}
-                alt="Cover preview"
-                style={{ width: "100%", height: 120, objectFit: "cover", display: "block" }}
-                onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
-              />
-            </div>
-          )}
-        </div>
+        <ImageUploadField
+          label="Foto de portada"
+          variant="cover"
+          hint="Se muestra como imagen de cabecera en tu página pública. Recomendado: 1200×400 px."
+          value={bizForm.coverUrl}
+          onChange={url => setBizForm(f => ({ ...f, coverUrl: url }))}
+        />
 
         <div className={styles.formGrid2}>
           <div className={styles.formGroup}>
