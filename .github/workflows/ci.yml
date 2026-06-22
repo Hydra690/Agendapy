@@ -9,6 +9,31 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
+    # Postgres efímero para correr migraciones y los tests de integración (que antes
+    # quedaban dormidos sin DATABASE_URL_TEST). Aplicar las migraciones acá también
+    # valida que corran limpias sobre una DB fresca.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: agendapy_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Migraciones (prisma.config.js usa DIRECT_URL || DATABASE_URL) y runtime.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/agendapy_test
+      # Habilita los tests de integración opt-in (tests/*.integration.test.ts).
+      DATABASE_URL_TEST: postgresql://postgres:postgres@localhost:5432/agendapy_test
+
     steps:
       - uses: actions/checkout@v4
 
@@ -23,17 +48,17 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
+      - name: Apply migrations (test DB)
+        run: npx prisma migrate deploy
+
       - name: Typecheck
         run: npx tsc --noEmit
 
       - name: Lint
         run: npm run lint
 
-      - name: Unit tests
+      - name: Tests (unit + integración contra Postgres)
         run: npm test
 
       - name: Build
         run: npm run build
-        env:
-          # Placeholder: el build no se conecta a la DB, pero el adapter exige la var.
-          DATABASE_URL: postgresql://user:pass@localhost:5432/db
