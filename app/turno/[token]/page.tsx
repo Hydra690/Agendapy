@@ -5,6 +5,7 @@ import { canCancelNow, cancellationDeadline } from "@/lib/booking";
 import { zonedToUtc } from "@/lib/timezone";
 import { dateToISODate } from "@/lib/date";
 import CancelButton from "./CancelButton";
+import RescheduleForm from "./RescheduleForm";
 import { formatDayMonthYear as formatLongDate, formatGs as formatPrice } from "@/lib/format";
 
 export const metadata: Metadata = {
@@ -66,7 +67,7 @@ export default async function ManageBookingPage({
     where: { manageToken: token },
     include: {
       business: { select: { name: true, slug: true, whatsapp: true, timezone: true, cancellationWindowHours: true } },
-      service: { select: { name: true, price: true } },
+      service: { select: { id: true, name: true, price: true } },
       client: { select: { name: true } },
     },
   });
@@ -129,6 +130,9 @@ export default async function ManageBookingPage({
                   ? `Podés cancelar hasta el ${deadlineText} hs.`
                   : "Podés cancelar hasta el momento del turno."}
               </p>
+              <div style={{ marginBottom: 12 }}>
+                <RescheduleForm token={token} slug={booking.business.slug} serviceId={booking.service.id} />
+              </div>
               <CancelButton token={token} />
             </div>
           ) : (

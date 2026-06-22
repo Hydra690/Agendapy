@@ -169,3 +169,36 @@ export async function sendBookingConfirmationEmail(
     throw e;
   }
 }
+
+/**
+ * Aviso de reprogramación al cliente (nuevo horario en `data`). Misma honestidad de
+ * señal que la confirmación: sin RESEND_API_KEY no envía de verdad (mode:"dev").
+ */
+export async function sendBookingRescheduleEmail(
+  to: string,
+  data: BookingConfirmationData
+): Promise<EmailResult> {
+  const manageLine = data.manageUrl
+    ? `\n\nGestioná o cancelá tu reserva: ${data.manageUrl}`
+    : "";
+  const manageHtml = data.manageUrl
+    ? `<p><a href="${data.manageUrl}" style="color:#00C48C">Gestionar mi reserva</a></p>`
+    : "";
+  try {
+    return await sendEmail({
+      to,
+      subject: `Tu reserva en ${data.businessName} se reprogramó — Agendapy`,
+      text:
+        `Hola ${data.clientName}! Tu reserva se reprogramó.\n\n` +
+        `${data.serviceName}\nNuevo horario: ${data.fechaLegible} a las ${data.startTime} hs${manageLine}`,
+      html: wrap(
+        "Reserva reprogramada",
+        `<p>Hola ${data.clientName}, tu reserva se movió a un nuevo horario:</p>
+         <p><strong>${data.serviceName}</strong><br>${data.fechaLegible} a las ${data.startTime} hs</p>${manageHtml}`
+      ),
+    });
+  } catch (e) {
+    logError("[email] booking reschedule", e, { to });
+    throw e;
+  }
+}

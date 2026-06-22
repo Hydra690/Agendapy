@@ -9,7 +9,12 @@ import { sendWhatsApp, type WhatsAppOptions } from "@/lib/twilio";
 import type { EmailResult } from "@/lib/email";
 import { logError } from "@/lib/logger";
 
-export type NotificationType = "CONFIRMATION" | "REMINDER_24H" | "CANCELLATION" | "NEW_BOOKING_OWNER";
+export type NotificationType =
+  | "CONFIRMATION"
+  | "REMINDER_24H"
+  | "CANCELLATION"
+  | "NEW_BOOKING_OWNER"
+  | "RESCHEDULE";
 
 interface NotifyArgs {
   bookingId: string;

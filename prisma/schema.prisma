@@ -298,6 +298,11 @@ model Booking {
   completedAt   DateTime?
   cancellationReason String?
 
+  // Auditoría de reprogramación: cuándo se movió y desde qué fecha/hora (la última).
+  rescheduledAt     DateTime?
+  previousDate      DateTime? @db.Date
+  previousStartTime String?
+
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 

@@ -57,6 +57,43 @@ export function clientConfirmationMessage(b: {
   );
 }
 
+/** Aviso al dueño: una reserva se reprogramó (de un horario a otro). */
+export function ownerRescheduleMessage(b: {
+  businessName: string;
+  clientName: string;
+  clientWhatsapp?: string | null;
+  serviceName: string;
+  fromFechaLegible: string;
+  fromStartTime: string;
+  toFechaLegible: string;
+  toStartTime: string;
+}): string {
+  return (
+    `🔄 *Reserva reprogramada en ${b.businessName}*\n\n` +
+    `👤 ${b.clientName}${b.clientWhatsapp ? ` · ${b.clientWhatsapp}` : ""}\n` +
+    `🛠️ ${b.serviceName}\n` +
+    `📅 Antes: ${b.fromFechaLegible} a las ${b.fromStartTime} hs\n` +
+    `📅 Ahora: ${b.toFechaLegible} a las ${b.toStartTime} hs`
+  );
+}
+
+/** Aviso al cliente: su reserva se movió a un nuevo horario. */
+export function clientRescheduleMessage(b: {
+  clientName: string;
+  businessName: string;
+  serviceName: string;
+  toFechaLegible: string;
+  toStartTime: string;
+  manageUrl?: string | null;
+}): string {
+  return (
+    `🔄 Hola ${b.clientName}! Tu reserva en *${b.businessName}* se reprogramó:\n\n` +
+    `🛠️ ${b.serviceName}\n` +
+    `📅 Nuevo horario: ${b.toFechaLegible} a las ${b.toStartTime} hs` +
+    (b.manageUrl ? `\n\nGestioná o cancelá tu reserva acá:\n${b.manageUrl}` : "")
+  );
+}
+
 /** Recordatorio al cliente 24h antes del turno. */
 export function clientReminderMessage(b: {
   clientName: string;

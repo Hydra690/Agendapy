@@ -141,4 +141,43 @@ run("Booking slot unique — rebook tras cancelar (con staff)", () => {
       })
     ).rejects.toMatchObject({ code: "P2002" });
   });
+
+  it("reprogramar libera el slot original y persiste previous*/rescheduledAt", async () => {
+    const base = {
+      date,
+      businessId: ids.businessId,
+      serviceId: ids.serviceId,
+      staffId: ids.staffId,
+      clientId: ids.clientId,
+    };
+    const slotOld = "14:00";
+    const slotNew = "15:00";
+
+    const b = await prisma.booking.create({
+      data: { ...base, startTime: slotOld, endTime: "14:30", status: "CONFIRMED", manageToken: randomBytes(12).toString("base64url") },
+    });
+
+    // Lo que hace el reschedule a nivel datos: mover el turno y guardar el horario previo.
+    await prisma.booking.update({
+      where: { id: b.id },
+      data: {
+        startTime: slotNew,
+        endTime: "15:30",
+        previousDate: date,
+        previousStartTime: slotOld,
+        rescheduledAt: new Date(),
+      },
+    });
+
+    const moved = await prisma.booking.findUnique({ where: { id: b.id } });
+    expect(moved?.startTime).toBe(slotNew);
+    expect(moved?.previousStartTime).toBe(slotOld);
+    expect(moved?.rescheduledAt).toBeTruthy();
+
+    // El slot original quedó libre: otra reserva activa puede tomarlo sin P2002.
+    const taker = await prisma.booking.create({
+      data: { ...base, startTime: slotOld, endTime: "14:30", status: "PENDING", manageToken: randomBytes(12).toString("base64url") },
+    });
+    expect(taker.id).toBeTruthy();
+  });
 });
