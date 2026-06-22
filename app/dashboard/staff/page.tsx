@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { usePlan } from "../usePlan";
 
 interface ServiceLite { id: string; name: string; }
 interface Staff {
@@ -42,6 +43,11 @@ const S = {
 export default function StaffPage() {
   const { status } = useSession();
   const router = useRouter();
+  const { plan, can } = usePlan();
+  // Multi-profesional es feature PRO (mismo criterio que el server: canUseFeature).
+  // Solo gatea AGREGAR; ver/editar el equipo existente sigue libre (el POST está
+  // gateado pero el PATCH no, así no se rompe a quien armó staff y bajó de plan).
+  const canAddStaff = can("multiStaff");
 
   const [staff, setStaff] = useState<Staff[]>([]);
   const [services, setServices] = useState<ServiceLite[]>([]);
@@ -171,9 +177,29 @@ export default function StaffPage() {
           </p>
         </div>
         {!showForm && (
-          <button style={S.btnPrimary} onClick={openNew}>+ Nuevo profesional</button>
+          canAddStaff || !plan ? (
+            <button style={S.btnPrimary} onClick={openNew}>+ Nuevo profesional</button>
+          ) : (
+            <button
+              style={{ ...S.btnPrimary, opacity: 0.55, cursor: "not-allowed" }}
+              title="La gestión de profesionales requiere el plan PRO."
+              disabled
+            >
+              + Nuevo profesional 🔒
+            </button>
+          )
         )}
       </div>
+
+      {plan && !canAddStaff && (
+        <div style={{ background: "#fff8e1", border: "1px solid #ffe49c", borderRadius: 12, padding: "12px 16px", marginBottom: 20, fontSize: "0.86rem", color: "#92400e" }}>
+          La gestión multi-profesional es parte del plan <strong>PRO</strong>. Podés ver y editar tu equipo actual,
+          pero para agregar nuevos profesionales necesitás PRO.{" "}
+          <a href="mailto:hola@agendapy.com.py?subject=Quiero contratar el plan PRO" style={{ color: "#f59e0b", fontWeight: 700, textDecoration: "none" }}>
+            Contratar PRO
+          </a>
+        </div>
+      )}
 
       {showForm && (
         <div style={{ background: "#fff", border: "1.5px solid #e8eaf0", borderRadius: 16, padding: "20px 24px", marginBottom: 20 }}>
