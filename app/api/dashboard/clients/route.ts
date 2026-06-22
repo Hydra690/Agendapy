@@ -20,6 +20,10 @@ export async function GET(request: NextRequest) {
 
     const { limit, offset } = parsePaging(request.url, 100, 300);
 
+    // Antes traíamos TODAS las reservas (con sus servicios) de cada cliente solo para
+    // contar y tomar la última → costo de transferencia que crece con el historial.
+    // Ahora: total por _count, ÚLTIMA reserva por take:1, y visitas (COMPLETED) por
+    // una agregación groupBy. No se transfieren todas las filas.
     const [total, clients] = await Promise.all([
       prisma.client.count({ where: { businessId: business.id } }),
       prisma.client.findMany({
@@ -30,13 +34,14 @@ export async function GET(request: NextRequest) {
           whatsapp: true,
           notes: true,
           createdAt: true,
+          _count: { select: { bookings: true } },
           bookings: {
+            take: 1,
+            orderBy: { date: "desc" },
             select: {
               date: true,
-              status: true,
               services: { select: { service: { select: { name: true } } } },
             },
-            orderBy: { date: "desc" },
           },
         },
         orderBy: { createdAt: "desc" },
@@ -45,8 +50,19 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
+    // Visitas completadas por cliente (de la página), en una sola agregación.
+    const pageIds = clients.map(c => c.id);
+    const completedByClient = new Map<string, number>();
+    if (pageIds.length > 0) {
+      const grouped = await prisma.booking.groupBy({
+        by: ["clientId"],
+        where: { businessId: business.id, clientId: { in: pageIds }, status: "COMPLETED" },
+        _count: { _all: true },
+      });
+      for (const g of grouped) completedByClient.set(g.clientId, g._count._all);
+    }
+
     const enriched = clients.map(c => {
-      const completed = c.bookings.filter(b => b.status === "COMPLETED").length;
       const lastBooking = c.bookings[0];
       return {
         id: c.id,
@@ -54,8 +70,8 @@ export async function GET(request: NextRequest) {
         whatsapp: c.whatsapp,
         notes: c.notes,
         createdAt: c.createdAt,
-        totalVisits: completed,
-        totalBookings: c.bookings.length,
+        totalVisits: completedByClient.get(c.id) ?? 0,
+        totalBookings: c._count.bookings,
         lastVisit: lastBooking?.date ?? null,
         lastService: lastBooking ? serviceNames(lastBooking.services.map((bs) => bs.service)) : null,
       };
