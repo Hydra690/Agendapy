@@ -7,12 +7,22 @@ import { logError } from "@/lib/logger";
 import { notifyWhatsApp, notifyEmail } from "@/lib/notify";
 import { sendBookingConfirmationEmail } from "@/lib/email";
 import { parseDateUTC, addMinutes, dateToISODate } from "@/lib/date";
-import { todayInTz, meetsBookingNotice } from "@/lib/timezone";
-import { checkSingleResourceSlot, staffCanDoService, dayOfWeekUTC, pickAvailableStaff, buildStaffSchedule } from "@/lib/booking";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/constants";
 import { ownerNewBookingMessage, clientConfirmationMessage } from "@/lib/messages";
 import { formatDayMonth } from "@/lib/format";
 import { appBaseUrl } from "@/lib/url";
+import {
+  assertBookingTiming,
+  assignAndReserveSlot,
+  withSerializableRetry,
+  SlotTakenError,
+  SlotUnavailableError,
+  BookingTooSoonError,
+  PastDateError,
+  BlockedDateError,
+  StaffServiceMismatchError,
+  NoStaffForServiceError,
+} from "@/lib/booking-engine";
 
 // NOTA: el listado de reservas por fecha es información sensible (PII de clientes)
 // y vive solo en el dashboard autenticado: GET /api/dashboard/bookings.
@@ -69,32 +79,9 @@ export async function POST(
       );
     }
 
-    // No permitir reservar en una fecha pasada (según la tz del negocio, no la del
-    // servidor). El endpoint de slots ya lo valida, pero el POST era directo.
-    if (dateParam < todayInTz(business.timezone)) {
-      return NextResponse.json(
-        { error: "No se pueden reservar fechas pasadas" },
-        { status: 400 }
-      );
-    }
-
-    // Antelación mínima: rechaza horarios ya pasados de hoy y los que no respetan el
-    // colchón configurado por el negocio. Misma regla que aplica /slots al ocultar.
-    if (!meetsBookingNotice(dateParam, startTime, business.minBookingNoticeMinutes, business.timezone)) {
-      throw new BookingTooSoonError(business.minBookingNoticeMinutes);
-    }
-
-    // Fecha bloqueada por el negocio (feriado, vacaciones). El endpoint de slots
-    // ya la oculta de la UI; acá la cortamos también para el POST directo.
-    const blocked = await prisma.blockedDate.findUnique({
-      where: { businessId_date: { businessId: business.id, date: bookingDate } },
-    });
-    if (blocked) {
-      return NextResponse.json(
-        { error: blocked.reason ?? "Esa fecha no está disponible para reservar" },
-        { status: 400 }
-      );
-    }
+    // Reglas de tiempo (fecha pasada, antelación mínima, fecha bloqueada). Lanzan
+    // PastDateError / BookingTooSoonError / BlockedDateError → mapeadas en el catch.
+    await assertBookingTiming(business, dateParam, bookingDate, startTime);
 
     const service = await prisma.service.findFirst({
       where: { id: serviceId, businessId: business.id, isActive: true },
@@ -125,78 +112,20 @@ export async function POST(
     // transacción de slot: no es parte de la invariante de disponibilidad.
     const client = await upsertClient(business.id, clientWhatsapp, clientName.trim(), clientEmail);
 
-    // Asignación de profesional + chequeo de disponibilidad + creación, ATÓMICO.
-    // El índice único parcial (Booking_active_slot_unique, COALESCE) garantiza la
-    // unicidad del MISMO inicio, pero NO atrapa solapes con inicios distintos
-    // (ej. 10:00 y 10:30 de 60min). Para eso, el chequeo (que lee las reservas del
-    // día) y el create corren en una transacción SERIALIZABLE: si dos reservas
-    // solapadas concurrentes pasan el pre-chequeo, Postgres aborta una (P2034) y la
-    // reintentamos; en el reintento ya ve la otra reserva y la rechaza como "taken".
+    // Asignación de profesional + chequeo de disponibilidad + creación, ATÓMICO
+    // (mismo motor que usa el reschedule). El índice único parcial garantiza la
+    // unicidad del MISMO inicio; los solapes de distinto inicio los cubre la
+    // transacción SERIALIZABLE con reintento ante P2034.
     const booking = await withSerializableRetry(() =>
       prisma.$transaction(
         async (tx) => {
-          const activeStaff = await tx.staff.findMany({
-            where: { businessId: business.id, isActive: true },
-            select: { id: true, services: { select: { id: true } } },
-            orderBy: { createdAt: "asc" },
+          const assignedStaffId = await assignAndReserveSlot(tx, {
+            businessId: business.id,
+            service: { id: service.id, duration: service.duration, bufferMinutes: service.bufferMinutes },
+            bookingDate,
+            startTime,
+            requestedStaffId: staffId,
           });
-
-          let assignedStaffId: string | null = null;
-
-          if (activeStaff.length === 0) {
-            // ---- Recurso único (sin profesionales): disponibilidad + solape ----
-            // No alcanza con chequear solape: el slot debe caer dentro de un bloque
-            // de atención del día y sobre la grilla duración+buffer (lo mismo que
-            // ofrece /slots). Si no, un POST directo crearía reservas fuera de horario.
-            const dow = dayOfWeekUTC(bookingDate);
-            const [blocks, sameDayActive] = await Promise.all([
-              tx.availability.findMany({
-                where: { businessId: business.id, dayOfWeek: dow, isActive: true, staffId: null },
-                select: { startTime: true, endTime: true },
-              }),
-              tx.booking.findMany({
-                where: { businessId: business.id, date: bookingDate, status: { in: [...ACTIVE_BOOKING_STATUSES] } },
-                select: { startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
-              }),
-            ]);
-            const occupied = sameDayActive.map(b => ({
-              startTime: b.startTime,
-              endTime: addMinutes(b.endTime, b.service.bufferMinutes),
-            }));
-            const check = checkSingleResourceSlot(blocks, service.duration, service.bufferMinutes, occupied, startTime);
-            if (check === "out_of_hours") throw new SlotUnavailableError();
-            if (check === "taken") throw new SlotTakenError();
-          } else {
-            // ---- Multi-profesional: asignar un profesional elegible y LIBRE ----
-            let candidates = activeStaff.filter(s => staffCanDoService(s.services.map(x => x.id), service.id));
-            if (staffId) {
-              candidates = candidates.filter(s => s.id === staffId);
-              if (candidates.length === 0) throw new StaffServiceMismatchError();
-            }
-            if (candidates.length === 0) throw new NoStaffForServiceError();
-
-            const ids = candidates.map(s => s.id);
-            const dow = dayOfWeekUTC(bookingDate);
-            const [availRows, bookingRows] = await Promise.all([
-              tx.availability.findMany({
-                where: { businessId: business.id, dayOfWeek: dow, isActive: true, staffId: { in: ids } },
-                select: { staffId: true, startTime: true, endTime: true },
-              }),
-              tx.booking.findMany({
-                where: { businessId: business.id, date: bookingDate, status: { in: [...ACTIVE_BOOKING_STATUSES] }, staffId: { in: ids } },
-                select: { staffId: true, startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
-              }),
-            ]);
-            const { blocksByStaff, occByStaff } = buildStaffSchedule(
-              availRows.map(r => ({ staffId: r.staffId!, startTime: r.startTime, endTime: r.endTime })),
-              bookingRows.map(b => ({ staffId: b.staffId!, startTime: b.startTime, endTime: b.endTime, bufferMinutes: b.service.bufferMinutes }))
-            );
-            // Primer profesional (orden estable por antigüedad) con el slot libre.
-            assignedStaffId = pickAvailableStaff(
-              candidates.map(s => s.id), blocksByStaff, occByStaff, startTime, service.duration, service.bufferMinutes
-            );
-            if (!assignedStaffId) throw new SlotTakenError();
-          }
 
           try {
             return await tx.booking.create({
@@ -324,6 +253,18 @@ export async function POST(
         { status: 400 }
       );
     }
+    if (error instanceof PastDateError) {
+      return NextResponse.json(
+        { error: "No se pueden reservar fechas pasadas" },
+        { status: 400 }
+      );
+    }
+    if (error instanceof BlockedDateError) {
+      return NextResponse.json(
+        { error: error.reason ?? "Esa fecha no está disponible para reservar" },
+        { status: 400 }
+      );
+    }
     if (error instanceof SlotTakenError) {
       return NextResponse.json(
         { error: "SLOT_TAKEN", message: "Este horario ya fue reservado. Por favor elegí otro." },
@@ -356,74 +297,10 @@ export async function POST(
   }
 }
 
-class SlotTakenError extends Error {
-  constructor() {
-    super("slot_taken");
-  }
-}
-
-class SlotUnavailableError extends Error {
-  constructor() {
-    super("slot_unavailable");
-  }
-}
-
 class BookingLimitError extends Error {
   constructor() {
     super("booking_limit");
   }
-}
-
-// El horario pedido no respeta la antelación mínima del negocio (o ya pasó).
-class BookingTooSoonError extends Error {
-  readonly userMessage: string;
-  constructor(noticeMinutes: number) {
-    super("booking_too_soon");
-    this.userMessage =
-      noticeMinutes > 0
-        ? "Ese horario ya no está disponible: el negocio requiere reservar con más anticipación."
-        : "Ese horario ya pasó. Elegí un horario futuro.";
-  }
-}
-
-// Se pidió un profesional que no hace este servicio.
-class StaffServiceMismatchError extends Error {
-  constructor() {
-    super("staff_service_mismatch");
-  }
-}
-
-// Ningún profesional del negocio ofrece este servicio.
-class NoStaffForServiceError extends Error {
-  constructor() {
-    super("no_staff_for_service");
-  }
-}
-
-/**
- * Ejecuta `fn` reintentando ante fallos de serialización (Prisma P2034), que el
- * nivel SERIALIZABLE lanza cuando dos transacciones concurrentes entran en
- * conflicto. Los errores de dominio (SlotTaken, etc.) NO son P2034 y se propagan
- * sin reintento. Pocos intentos: la contención real de AgendaPy es bajísima.
- */
-async function withSerializableRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
-  let lastError: unknown;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      return await fn();
-    } catch (e) {
-      if (
-        attempt < maxAttempts &&
-        e instanceof Prisma.PrismaClientKnownRequestError &&
-        e.code === "P2034"
-      ) {
-        lastError = e;
-        continue;
-      }
-      throw e;
-    }
-  }
-  throw lastError;
 }
 
 // Encuentra el cliente por (negocio, whatsapp) o lo crea. Si dos requests del
