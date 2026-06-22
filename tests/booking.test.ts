@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateSlots, rangesOverlap, availableSlots, dayOfWeekUTC, canCancelNow, cancellationDeadline, unionSlots, staffCanDoService, pickAvailableStaff, checkSingleResourceSlot } from "@/lib/booking";
+import { generateSlots, rangesOverlap, availableSlots, dayOfWeekUTC, canCancelNow, cancellationDeadline, unionSlots, staffCanDoService, pickAvailableStaff, checkSingleResourceSlot, buildStaffSchedule } from "@/lib/booking";
 
 describe("generateSlots", () => {
   it("genera pasos de la duración dentro del intervalo", () => {
@@ -151,6 +151,83 @@ describe("pickAvailableStaff", () => {
 
   it("null si el slot cae fuera del horario del profesional", () => {
     expect(pickAvailableStaff(["a"], blocks, new Map(), "13:00", 30, 0)).toBeNull();
+  });
+});
+
+describe("buildStaffSchedule", () => {
+  it("agrupa bloques de disponibilidad por profesional", () => {
+    const { blocksByStaff } = buildStaffSchedule(
+      [
+        { staffId: "a", startTime: "08:00", endTime: "12:00" },
+        { staffId: "a", startTime: "14:00", endTime: "18:00" },
+        { staffId: "b", startTime: "09:00", endTime: "13:00" },
+      ],
+      []
+    );
+    expect(blocksByStaff.get("a")).toEqual([
+      { startTime: "08:00", endTime: "12:00" },
+      { startTime: "14:00", endTime: "18:00" },
+    ]);
+    expect(blocksByStaff.get("b")).toEqual([{ startTime: "09:00", endTime: "13:00" }]);
+  });
+
+  it("suma el buffer al fin ocupado de cada reserva", () => {
+    const { occByStaff } = buildStaffSchedule(
+      [],
+      [{ staffId: "a", startTime: "10:00", endTime: "10:30", bufferMinutes: 15 }]
+    );
+    // El fin ocupado es endTime + buffer = 10:30 + 15 = 10:45.
+    expect(occByStaff.get("a")).toEqual([{ startTime: "10:00", endTime: "10:45" }]);
+  });
+
+  it("acumula varias reservas del mismo profesional", () => {
+    const { occByStaff } = buildStaffSchedule(
+      [],
+      [
+        { staffId: "a", startTime: "10:00", endTime: "10:30", bufferMinutes: 0 },
+        { staffId: "a", startTime: "11:00", endTime: "11:30", bufferMinutes: 0 },
+      ]
+    );
+    expect(occByStaff.get("a")).toEqual([
+      { startTime: "10:00", endTime: "10:30" },
+      { startTime: "11:00", endTime: "11:30" },
+    ]);
+  });
+
+  it("mapas vacíos cuando no hay filas (profesional sin agenda ni reservas)", () => {
+    const { blocksByStaff, occByStaff } = buildStaffSchedule([], []);
+    expect(blocksByStaff.size).toBe(0);
+    expect(occByStaff.size).toBe(0);
+  });
+
+  it("compone con pickAvailableStaff: el ocupado+buffer descarta al profesional", () => {
+    // a atiende 08:00–12:00; tiene 08:00–08:30 reservado con buffer 30 → ocupa hasta 09:00.
+    // Para el slot 08:30 (30min) a está bloqueado por el buffer; cae a b (libre).
+    const { blocksByStaff, occByStaff } = buildStaffSchedule(
+      [
+        { staffId: "a", startTime: "08:00", endTime: "12:00" },
+        { staffId: "b", startTime: "08:00", endTime: "12:00" },
+      ],
+      [{ staffId: "a", startTime: "08:00", endTime: "08:30", bufferMinutes: 30 }]
+    );
+    expect(pickAvailableStaff(["a", "b"], blocksByStaff, occByStaff, "08:30", 30, 0)).toBe("b");
+  });
+
+  it("compone con unionSlots: un slot se ofrece si ≥1 profesional lo tiene libre", () => {
+    // a ocupado 08:00 (buffer 0); b libre. La unión igual ofrece 08:00 por b.
+    const { blocksByStaff, occByStaff } = buildStaffSchedule(
+      [
+        { staffId: "a", startTime: "08:00", endTime: "09:00" },
+        { staffId: "b", startTime: "08:00", endTime: "09:00" },
+      ],
+      [{ staffId: "a", startTime: "08:00", endTime: "08:30", bufferMinutes: 0 }]
+    );
+    const ids = ["a", "b"];
+    const slots = unionSlots(ids.map(id =>
+      availableSlots(blocksByStaff.get(id) ?? [], 30, 0, occByStaff.get(id) ?? [])
+    ));
+    expect(slots).toContain("08:00"); // b lo cubre
+    expect(slots).toContain("08:30");
   });
 });
 

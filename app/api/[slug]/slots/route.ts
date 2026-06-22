@@ -4,7 +4,7 @@ import { SlotsQuerySchema, formatZodErrors } from "@/lib/validations";
 import { logError } from "@/lib/logger";
 import { parseDateUTC, addMinutes } from "@/lib/date";
 import { todayInTz, filterSlotsByNotice } from "@/lib/timezone";
-import { availableSlots, dayOfWeekUTC, unionSlots, staffCanDoService } from "@/lib/booking";
+import { availableSlots, dayOfWeekUTC, unionSlots, staffCanDoService, buildStaffSchedule } from "@/lib/booking";
 
 export async function GET(
   request: NextRequest,
@@ -122,18 +122,10 @@ export async function GET(
           select: { staffId: true, startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
         }),
       ]);
-      const blocksByStaff = new Map<string, { startTime: string; endTime: string }[]>();
-      for (const r of availRows) {
-        const list = blocksByStaff.get(r.staffId!) ?? [];
-        list.push({ startTime: r.startTime, endTime: r.endTime });
-        blocksByStaff.set(r.staffId!, list);
-      }
-      const occByStaff = new Map<string, { startTime: string; endTime: string }[]>();
-      for (const b of bookingRows) {
-        const list = occByStaff.get(b.staffId!) ?? [];
-        list.push({ startTime: b.startTime, endTime: addMinutes(b.endTime, b.service.bufferMinutes) });
-        occByStaff.set(b.staffId!, list);
-      }
+      const { blocksByStaff, occByStaff } = buildStaffSchedule(
+        availRows.map(r => ({ staffId: r.staffId!, startTime: r.startTime, endTime: r.endTime })),
+        bookingRows.map(b => ({ staffId: b.staffId!, startTime: b.startTime, endTime: b.endTime, bufferMinutes: b.service.bufferMinutes }))
+      );
       slots = unionSlots(ids.map(sid =>
         availableSlots(blocksByStaff.get(sid) ?? [], service.duration, service.bufferMinutes, occByStaff.get(sid) ?? [])
       ));

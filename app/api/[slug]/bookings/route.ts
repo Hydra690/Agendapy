@@ -7,7 +7,7 @@ import { logError } from "@/lib/logger";
 import { notifyWhatsApp } from "@/lib/notify";
 import { parseDateUTC, addMinutes, dateToISODate } from "@/lib/date";
 import { todayInTz, meetsBookingNotice } from "@/lib/timezone";
-import { checkSingleResourceSlot, staffCanDoService, dayOfWeekUTC, pickAvailableStaff } from "@/lib/booking";
+import { checkSingleResourceSlot, staffCanDoService, dayOfWeekUTC, pickAvailableStaff, buildStaffSchedule } from "@/lib/booking";
 
 // NOTA: el listado de reservas por fecha es información sensible (PII de clientes)
 // y vive solo en el dashboard autenticado: GET /api/dashboard/bookings.
@@ -182,18 +182,10 @@ export async function POST(
                 select: { staffId: true, startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
               }),
             ]);
-            const blocksByStaff = new Map<string, { startTime: string; endTime: string }[]>();
-            for (const r of availRows) {
-              const l = blocksByStaff.get(r.staffId!) ?? [];
-              l.push({ startTime: r.startTime, endTime: r.endTime });
-              blocksByStaff.set(r.staffId!, l);
-            }
-            const occByStaff = new Map<string, { startTime: string; endTime: string }[]>();
-            for (const b of bookingRows) {
-              const l = occByStaff.get(b.staffId!) ?? [];
-              l.push({ startTime: b.startTime, endTime: addMinutes(b.endTime, b.service.bufferMinutes) });
-              occByStaff.set(b.staffId!, l);
-            }
+            const { blocksByStaff, occByStaff } = buildStaffSchedule(
+              availRows.map(r => ({ staffId: r.staffId!, startTime: r.startTime, endTime: r.endTime })),
+              bookingRows.map(b => ({ staffId: b.staffId!, startTime: b.startTime, endTime: b.endTime, bufferMinutes: b.service.bufferMinutes }))
+            );
             // Primer profesional (orden estable por antigüedad) con el slot libre.
             assignedStaffId = pickAvailableStaff(
               candidates.map(s => s.id), blocksByStaff, occByStaff, startTime, service.duration, service.bufferMinutes

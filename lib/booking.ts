@@ -171,3 +171,36 @@ export function pickAvailableStaff(
   }
   return null;
 }
+
+export interface StaffAvailRow { staffId: string; startTime: string; endTime: string; }
+export interface StaffBookingRow { staffId: string; startTime: string; endTime: string; bufferMinutes: number; }
+export interface StaffSchedule {
+  blocksByStaff: Map<string, Array<{ startTime: string; endTime: string }>>;
+  occByStaff: Map<string, BookedRange[]>;
+}
+
+/**
+ * Agrupa por profesional las filas de disponibilidad y de reservas del día. El "fin
+ * ocupado" de cada reserva ya incluye su buffer (`endTime + bufferMinutes`). Es la
+ * cola entre las filas crudas de la DB y `pickAvailableStaff` / `availableSlots`,
+ * compartida por `/slots` (unión) y el POST de reserva (asignación) — antes estaba
+ * duplicada e inline en ambas rutas, sin test.
+ */
+export function buildStaffSchedule(
+  availRows: StaffAvailRow[],
+  bookingRows: StaffBookingRow[]
+): StaffSchedule {
+  const blocksByStaff = new Map<string, Array<{ startTime: string; endTime: string }>>();
+  for (const r of availRows) {
+    const list = blocksByStaff.get(r.staffId) ?? [];
+    list.push({ startTime: r.startTime, endTime: r.endTime });
+    blocksByStaff.set(r.staffId, list);
+  }
+  const occByStaff = new Map<string, BookedRange[]>();
+  for (const b of bookingRows) {
+    const list = occByStaff.get(b.staffId) ?? [];
+    list.push({ startTime: b.startTime, endTime: addMinutes(b.endTime, b.bufferMinutes) });
+    occByStaff.set(b.staffId, list);
+  }
+  return { blocksByStaff, occByStaff };
+}
