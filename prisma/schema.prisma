@@ -321,7 +321,13 @@ model Booking {
   // Notificaciones enviadas
   notifications BookingNotification[]
 
-  @@unique([businessId, staffId, date, startTime])
+  // La unicidad de slot NO vive acá. Un @@unique plano sobre (businessId, staffId,
+  // date, startTime) NO filtra por status: para reservas con staffId asignado,
+  // rebookear un slot CANCELLED chocaba P2002 → falso SLOT_TAKEN. La invariante
+  // correcta la da el índice único PARCIAL `Booking_active_slot_unique` (migración
+  // 20260616130000): UNIQUE (businessId, COALESCE(staffId,''), date, startTime)
+  // WHERE status IN ('PENDING','CONFIRMED'). Prisma no expresa índices parciales,
+  // así que se mantiene como SQL crudo y se omite a propósito del schema.
   @@index([businessId, date])
   @@index([date, status, reminderSent])
   @@index([clientId])
