@@ -6,7 +6,7 @@ import { BookingSchema, formatZodErrors } from "@/lib/validations";
 import { logError } from "@/lib/logger";
 import { notifyWhatsApp } from "@/lib/notify";
 import { parseDateUTC, addMinutes, dateToISODate } from "@/lib/date";
-import { todayInTz } from "@/lib/timezone";
+import { todayInTz, meetsBookingNotice } from "@/lib/timezone";
 import { checkSingleResourceSlot, staffCanDoService, dayOfWeekUTC, pickAvailableStaff } from "@/lib/booking";
 
 // NOTA: el listado de reservas por fecha es información sensible (PII de clientes)
@@ -73,6 +73,12 @@ export async function POST(
       );
     }
 
+    // Antelación mínima: rechaza horarios ya pasados de hoy y los que no respetan el
+    // colchón configurado por el negocio. Misma regla que aplica /slots al ocultar.
+    if (!meetsBookingNotice(dateParam, startTime, business.minBookingNoticeMinutes, business.timezone)) {
+      throw new BookingTooSoonError(business.minBookingNoticeMinutes);
+    }
+
     // Fecha bloqueada por el negocio (feriado, vacaciones). El endpoint de slots
     // ya la oculta de la UI; acá la cortamos también para el POST directo.
     const blocked = await prisma.blockedDate.findUnique({
@@ -109,116 +115,122 @@ export async function POST(
       throw new BookingLimitError();
     }
 
-    // Asignación de profesional + chequeo de disponibilidad/solape.
-    // La garantía ATÓMICA contra dos reservas del MISMO profesional en el mismo inicio
-    // la da el índice único parcial per-staff ("Booking_active_slot_unique", COALESCE);
-    // acá hacemos el pre-chequeo (mejor mensaje + caso común).
-    const activeStaff = await prisma.staff.findMany({
-      where: { businessId: business.id, isActive: true },
-      select: { id: true, services: { select: { id: true } } },
-      orderBy: { createdAt: "asc" },
-    });
-
-    let assignedStaffId: string | null = null;
-
-    if (activeStaff.length === 0) {
-      // ---- Recurso único (sin profesionales): validar disponibilidad + solape ----
-      // No alcanza con chequear solape: el slot debe caer dentro de un bloque de
-      // atención del día y sobre la grilla duración+buffer (lo mismo que ofrece la
-      // UI vía /slots). Si no, un POST directo crearía reservas fuera de horario.
-      const dow = dayOfWeekUTC(bookingDate);
-      const [blocks, sameDayActive] = await Promise.all([
-        prisma.availability.findMany({
-          where: { businessId: business.id, dayOfWeek: dow, isActive: true, staffId: null },
-          select: { startTime: true, endTime: true },
-        }),
-        prisma.booking.findMany({
-          where: { businessId: business.id, date: bookingDate, status: { in: ["PENDING", "CONFIRMED"] } },
-          select: { startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
-        }),
-      ]);
-      const occupied = sameDayActive.map(b => ({
-        startTime: b.startTime,
-        endTime: addMinutes(b.endTime, b.service.bufferMinutes),
-      }));
-      const check = checkSingleResourceSlot(blocks, service.duration, service.bufferMinutes, occupied, startTime);
-      if (check === "out_of_hours") throw new SlotUnavailableError();
-      if (check === "taken") throw new SlotTakenError();
-    } else {
-      // ---- Multi-profesional: asignar un profesional elegible y LIBRE en ese slot ----
-      let candidates = activeStaff.filter(s => staffCanDoService(s.services.map(x => x.id), service.id));
-      if (staffId) {
-        candidates = candidates.filter(s => s.id === staffId);
-        if (candidates.length === 0) {
-          return NextResponse.json({ error: "Ese profesional no atiende este servicio" }, { status: 400 });
-        }
-      }
-      if (candidates.length === 0) {
-        return NextResponse.json({ error: "Ningún profesional ofrece este servicio" }, { status: 400 });
-      }
-
-      const ids = candidates.map(s => s.id);
-      const dow = dayOfWeekUTC(bookingDate);
-      const [availRows, bookingRows] = await Promise.all([
-        prisma.availability.findMany({
-          where: { businessId: business.id, dayOfWeek: dow, isActive: true, staffId: { in: ids } },
-          select: { staffId: true, startTime: true, endTime: true },
-        }),
-        prisma.booking.findMany({
-          where: { businessId: business.id, date: bookingDate, status: { in: ["PENDING", "CONFIRMED"] }, staffId: { in: ids } },
-          select: { staffId: true, startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
-        }),
-      ]);
-      const blocksByStaff = new Map<string, { startTime: string; endTime: string }[]>();
-      for (const r of availRows) {
-        const l = blocksByStaff.get(r.staffId!) ?? [];
-        l.push({ startTime: r.startTime, endTime: r.endTime });
-        blocksByStaff.set(r.staffId!, l);
-      }
-      const occByStaff = new Map<string, { startTime: string; endTime: string }[]>();
-      for (const b of bookingRows) {
-        const l = occByStaff.get(b.staffId!) ?? [];
-        l.push({ startTime: b.startTime, endTime: addMinutes(b.endTime, b.service.bufferMinutes) });
-        occByStaff.set(b.staffId!, l);
-      }
-      // Primer profesional (orden estable por antigüedad) con el slot libre.
-      assignedStaffId = pickAvailableStaff(
-        candidates.map(s => s.id), blocksByStaff, occByStaff, startTime, service.duration, service.bufferMinutes
-      );
-      if (!assignedStaffId) throw new SlotTakenError();
-    }
-
     // Upsert del cliente por whatsapp+negocio (idempotente; carrera cubierta por
-    // el unique businessId_whatsapp → reintento de lectura).
+    // el unique businessId_whatsapp → reintento de lectura). Va FUERA de la
+    // transacción de slot: no es parte de la invariante de disponibilidad.
     const client = await upsertClient(business.id, clientWhatsapp, clientName.trim());
 
-    let booking;
-    try {
-      booking = await prisma.booking.create({
-        data: {
-          date: bookingDate,
-          startTime,
-          endTime,
-          status: "PENDING",
-          notes: typeof notes === "string" ? notes.trim() || null : null,
-          manageToken: randomBytes(24).toString("base64url"),
-          businessId: business.id,
-          serviceId: service.id,
-          staffId: assignedStaffId,
-          clientId: client.id,
+    // Asignación de profesional + chequeo de disponibilidad + creación, ATÓMICO.
+    // El índice único parcial (Booking_active_slot_unique, COALESCE) garantiza la
+    // unicidad del MISMO inicio, pero NO atrapa solapes con inicios distintos
+    // (ej. 10:00 y 10:30 de 60min). Para eso, el chequeo (que lee las reservas del
+    // día) y el create corren en una transacción SERIALIZABLE: si dos reservas
+    // solapadas concurrentes pasan el pre-chequeo, Postgres aborta una (P2034) y la
+    // reintentamos; en el reintento ya ve la otra reserva y la rechaza como "taken".
+    const booking = await withSerializableRetry(() =>
+      prisma.$transaction(
+        async (tx) => {
+          const activeStaff = await tx.staff.findMany({
+            where: { businessId: business.id, isActive: true },
+            select: { id: true, services: { select: { id: true } } },
+            orderBy: { createdAt: "asc" },
+          });
+
+          let assignedStaffId: string | null = null;
+
+          if (activeStaff.length === 0) {
+            // ---- Recurso único (sin profesionales): disponibilidad + solape ----
+            // No alcanza con chequear solape: el slot debe caer dentro de un bloque
+            // de atención del día y sobre la grilla duración+buffer (lo mismo que
+            // ofrece /slots). Si no, un POST directo crearía reservas fuera de horario.
+            const dow = dayOfWeekUTC(bookingDate);
+            const [blocks, sameDayActive] = await Promise.all([
+              tx.availability.findMany({
+                where: { businessId: business.id, dayOfWeek: dow, isActive: true, staffId: null },
+                select: { startTime: true, endTime: true },
+              }),
+              tx.booking.findMany({
+                where: { businessId: business.id, date: bookingDate, status: { in: ["PENDING", "CONFIRMED"] } },
+                select: { startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
+              }),
+            ]);
+            const occupied = sameDayActive.map(b => ({
+              startTime: b.startTime,
+              endTime: addMinutes(b.endTime, b.service.bufferMinutes),
+            }));
+            const check = checkSingleResourceSlot(blocks, service.duration, service.bufferMinutes, occupied, startTime);
+            if (check === "out_of_hours") throw new SlotUnavailableError();
+            if (check === "taken") throw new SlotTakenError();
+          } else {
+            // ---- Multi-profesional: asignar un profesional elegible y LIBRE ----
+            let candidates = activeStaff.filter(s => staffCanDoService(s.services.map(x => x.id), service.id));
+            if (staffId) {
+              candidates = candidates.filter(s => s.id === staffId);
+              if (candidates.length === 0) throw new StaffServiceMismatchError();
+            }
+            if (candidates.length === 0) throw new NoStaffForServiceError();
+
+            const ids = candidates.map(s => s.id);
+            const dow = dayOfWeekUTC(bookingDate);
+            const [availRows, bookingRows] = await Promise.all([
+              tx.availability.findMany({
+                where: { businessId: business.id, dayOfWeek: dow, isActive: true, staffId: { in: ids } },
+                select: { staffId: true, startTime: true, endTime: true },
+              }),
+              tx.booking.findMany({
+                where: { businessId: business.id, date: bookingDate, status: { in: ["PENDING", "CONFIRMED"] }, staffId: { in: ids } },
+                select: { staffId: true, startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
+              }),
+            ]);
+            const blocksByStaff = new Map<string, { startTime: string; endTime: string }[]>();
+            for (const r of availRows) {
+              const l = blocksByStaff.get(r.staffId!) ?? [];
+              l.push({ startTime: r.startTime, endTime: r.endTime });
+              blocksByStaff.set(r.staffId!, l);
+            }
+            const occByStaff = new Map<string, { startTime: string; endTime: string }[]>();
+            for (const b of bookingRows) {
+              const l = occByStaff.get(b.staffId!) ?? [];
+              l.push({ startTime: b.startTime, endTime: addMinutes(b.endTime, b.service.bufferMinutes) });
+              occByStaff.set(b.staffId!, l);
+            }
+            // Primer profesional (orden estable por antigüedad) con el slot libre.
+            assignedStaffId = pickAvailableStaff(
+              candidates.map(s => s.id), blocksByStaff, occByStaff, startTime, service.duration, service.bufferMinutes
+            );
+            if (!assignedStaffId) throw new SlotTakenError();
+          }
+
+          try {
+            return await tx.booking.create({
+              data: {
+                date: bookingDate,
+                startTime,
+                endTime,
+                status: "PENDING",
+                notes: typeof notes === "string" ? notes.trim() || null : null,
+                manageToken: randomBytes(24).toString("base64url"),
+                businessId: business.id,
+                serviceId: service.id,
+                staffId: assignedStaffId,
+                clientId: client.id,
+              },
+              include: {
+                service: { select: { id: true, name: true, duration: true, price: true } },
+                client: { select: { id: true, name: true, whatsapp: true } },
+              },
+            });
+          } catch (e) {
+            // Violación del índice único parcial → otro request ganó el slot.
+            if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+              throw new SlotTakenError();
+            }
+            throw e;
+          }
         },
-        include: {
-          service: { select: { id: true, name: true, duration: true, price: true } },
-          client: { select: { id: true, name: true, whatsapp: true } },
-        },
-      });
-    } catch (e) {
-      // Violación del índice único parcial → otro request ganó el slot.
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
-        throw new SlotTakenError();
-      }
-      throw e;
-    }
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
+      )
+    );
 
     // Notificar al dueño por WhatsApp (fire-and-forget, con registro persistido)
     if (business.whatsapp) {
@@ -271,6 +283,18 @@ export async function POST(
         { status: 400 }
       );
     }
+    if (error instanceof BookingTooSoonError) {
+      return NextResponse.json(
+        { error: "BOOKING_TOO_SOON", message: error.userMessage },
+        { status: 400 }
+      );
+    }
+    if (error instanceof StaffServiceMismatchError) {
+      return NextResponse.json({ error: "Ese profesional no atiende este servicio" }, { status: 400 });
+    }
+    if (error instanceof NoStaffForServiceError) {
+      return NextResponse.json({ error: "Ningún profesional ofrece este servicio" }, { status: 400 });
+    }
     logError("[bookings]", error);
     return NextResponse.json(
       { error: "Error interno del servidor" },
@@ -295,6 +319,58 @@ class BookingLimitError extends Error {
   constructor() {
     super("booking_limit");
   }
+}
+
+// El horario pedido no respeta la antelación mínima del negocio (o ya pasó).
+class BookingTooSoonError extends Error {
+  readonly userMessage: string;
+  constructor(noticeMinutes: number) {
+    super("booking_too_soon");
+    this.userMessage =
+      noticeMinutes > 0
+        ? "Ese horario ya no está disponible: el negocio requiere reservar con más anticipación."
+        : "Ese horario ya pasó. Elegí un horario futuro.";
+  }
+}
+
+// Se pidió un profesional que no hace este servicio.
+class StaffServiceMismatchError extends Error {
+  constructor() {
+    super("staff_service_mismatch");
+  }
+}
+
+// Ningún profesional del negocio ofrece este servicio.
+class NoStaffForServiceError extends Error {
+  constructor() {
+    super("no_staff_for_service");
+  }
+}
+
+/**
+ * Ejecuta `fn` reintentando ante fallos de serialización (Prisma P2034), que el
+ * nivel SERIALIZABLE lanza cuando dos transacciones concurrentes entran en
+ * conflicto. Los errores de dominio (SlotTaken, etc.) NO son P2034 y se propagan
+ * sin reintento. Pocos intentos: la contención real de AgendaPy es bajísima.
+ */
+async function withSerializableRetry<T>(fn: () => Promise<T>, maxAttempts = 3): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (
+        attempt < maxAttempts &&
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2034"
+      ) {
+        lastError = e;
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw lastError;
 }
 
 // Encuentra el cliente por (negocio, whatsapp) o lo crea. Si dos requests del

@@ -19,6 +19,7 @@ const BUSINESS_SELECT = {
   instagram: true,
   facebook: true,
   cancellationWindowHours: true,
+  minBookingNoticeMinutes: true,
   isActive: true,
   plan: true,
   planExpiry: true,
@@ -101,6 +102,9 @@ export async function PATCH(req: Request) {
         facebook: data.facebook ?? null,
         ...(data.cancellationWindowHours !== undefined
           ? { cancellationWindowHours: data.cancellationWindowHours }
+          : {}),
+        ...(data.minBookingNoticeMinutes !== undefined
+          ? { minBookingNoticeMinutes: data.minBookingNoticeMinutes }
           : {}),
       },
     });

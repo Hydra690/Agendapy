@@ -140,6 +140,11 @@ model Business {
   // Self-service: horas mínimas de antelación con que el cliente puede cancelar.
   // 0 = puede cancelar hasta el mismo momento del turno.
   cancellationWindowHours Int    @default(2)
+  // Antelación MÍNIMA (en minutos) con que un cliente puede reservar un turno.
+  // 0 = puede reservar hasta la hora actual (solo se ocultan los horarios ya
+  // pasados del día). >0 agrega un colchón (ej. 60 = no se reserva con menos de
+  // 1h de anticipación). Lo hace cumplir /slots (oculta) y el POST (rechaza).
+  minBookingNoticeMinutes Int    @default(0)
   isActive    Boolean          @default(true)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt

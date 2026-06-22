@@ -55,6 +55,9 @@ export const BusinessUpdateSchema = z.object({
   facebook: optionalText(200),
   // Horas mínimas de antelación con que el cliente puede cancelar online (0-168).
   cancellationWindowHours: z.coerce.number().int().min(0).max(168).optional(),
+  // Antelación mínima para reservar, en minutos (0 = solo bloquea horas pasadas).
+  // Máx 10080 min = 7 días.
+  minBookingNoticeMinutes: z.coerce.number().int().min(0).max(10080).optional(),
 });
 
 // Servicios del dashboard

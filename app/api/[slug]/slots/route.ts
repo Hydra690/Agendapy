@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { SlotsQuerySchema, formatZodErrors } from "@/lib/validations";
 import { logError } from "@/lib/logger";
 import { parseDateUTC, addMinutes } from "@/lib/date";
-import { todayInTz } from "@/lib/timezone";
+import { todayInTz, filterSlotsByNotice } from "@/lib/timezone";
 import { availableSlots, dayOfWeekUTC, unionSlots, staffCanDoService } from "@/lib/booking";
 
 export async function GET(
@@ -138,6 +138,10 @@ export async function GET(
         availableSlots(blocksByStaff.get(sid) ?? [], service.duration, service.bufferMinutes, occByStaff.get(sid) ?? [])
       ));
     }
+
+    // Ocultar horarios que no cumplen la antelación mínima del negocio (con 0,
+    // simplemente oculta los horarios ya pasados del día de hoy).
+    slots = filterSlotsByNotice(dateParam, slots, business.minBookingNoticeMinutes, business.timezone);
 
     return NextResponse.json(
       {

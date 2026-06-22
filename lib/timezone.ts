@@ -65,6 +65,34 @@ export function zonedToUtc(ymd: string, hhmm: string, tz: string = DEFAULT_TZ): 
 }
 
 /**
+ * ¿El slot `hhmm` del día `ymd` (en la tz dada) arranca en o después de
+ * `now + noticeMinutes`? Con noticeMinutes=0 esto equivale a "el horario no pasó
+ * todavía". Es la regla única que cubre a la vez "no reservar horas pasadas de hoy"
+ * y la antelación mínima configurable del negocio.
+ */
+export function meetsBookingNotice(
+  ymd: string,
+  hhmm: string,
+  noticeMinutes: number,
+  tz: string = DEFAULT_TZ,
+  now: Date = new Date()
+): boolean {
+  const cutoff = now.getTime() + Math.max(0, noticeMinutes) * 60_000;
+  return zonedToUtc(ymd, hhmm, tz).getTime() >= cutoff;
+}
+
+/** Filtra slots ("HH:mm") de `ymd` dejando solo los que cumplen la antelación. */
+export function filterSlotsByNotice(
+  ymd: string,
+  slots: string[],
+  noticeMinutes: number,
+  tz: string = DEFAULT_TZ,
+  now: Date = new Date()
+): string[] {
+  return slots.filter((s) => meetsBookingNotice(ymd, s, noticeMinutes, tz, now));
+}
+
+/**
  * Rango [start, end) en Date UTC-midnight que cubre el día calendario "mañana"
  * en la tz dada. Pensado para el cron de recordatorios: busca reservas cuyo
  * `date` (día calendario) sea el de mañana en la tz del negocio.

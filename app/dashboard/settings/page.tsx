@@ -30,6 +30,7 @@ interface Business {
   instagram: string | null;
   facebook: string | null;
   cancellationWindowHours: number;
+  minBookingNoticeMinutes: number;
 }
 
 interface Interval {
@@ -108,7 +109,7 @@ export default function SettingsPage() {
 
   // Business form
   const [business, setBusiness] = useState<Business | null>(null);
-  const [bizForm, setBizForm] = useState({ name: "", description: "", address: "", phone: "", whatsapp: "", logoUrl: "", coverUrl: "", instagram: "", facebook: "", cancellationWindowHours: 2 });
+  const [bizForm, setBizForm] = useState({ name: "", description: "", address: "", phone: "", whatsapp: "", logoUrl: "", coverUrl: "", instagram: "", facebook: "", cancellationWindowHours: 2, minBookingNoticeMinutes: 0 });
   const [bizError, setBizError] = useState<string | null>(null);
   const [bizSaving, setBizSaving] = useState(false);
   const [bizSaved, setBizSaved] = useState(false);
@@ -158,6 +159,7 @@ export default function SettingsPage() {
         instagram: bizData.business.instagram ?? "",
         facebook: bizData.business.facebook ?? "",
         cancellationWindowHours: bizData.business.cancellationWindowHours ?? 2,
+        minBookingNoticeMinutes: bizData.business.minBookingNoticeMinutes ?? 0,
       });
 
       setSchedule(DEFAULT_SCHEDULE.map((def) => {
@@ -537,6 +539,28 @@ export default function SettingsPage() {
           </select>
           <span style={{ fontSize: "0.78rem", color: "#8888aa", marginTop: 4, display: "block" }}>
             Hasta cuándo tus clientes pueden cancelar solos desde su link de reserva. Después de ese plazo, deberán contactarte.
+          </span>
+        </div>
+
+        <div className={styles.formGroup}>
+          <label className={styles.formLabel}>Antelación mínima para reservar</label>
+          <select
+            className={styles.formInput}
+            value={bizForm.minBookingNoticeMinutes}
+            onChange={e => setBizForm(f => ({ ...f, minBookingNoticeMinutes: Number(e.target.value) }))}
+          >
+            <option value={0}>Sin mínimo (no se ofrecen horas ya pasadas)</option>
+            <option value={15}>15 minutos antes</option>
+            <option value={30}>30 minutos antes</option>
+            <option value={60}>1 hora antes</option>
+            <option value={120}>2 horas antes</option>
+            <option value={180}>3 horas antes</option>
+            <option value={360}>6 horas antes</option>
+            <option value={720}>12 horas antes</option>
+            <option value={1440}>24 horas antes</option>
+          </select>
+          <span style={{ fontSize: "0.78rem", color: "#8888aa", marginTop: 4, display: "block" }}>
+            Con cuánta anticipación deben reservar tus clientes. Evita reservas de último momento. En todos los casos, los horarios ya pasados del día no se ofrecen.
           </span>
         </div>
 
