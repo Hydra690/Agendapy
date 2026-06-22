@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { MyBookingsQuerySchema, formatZodErrors } from "@/lib/validations";
 import { logError } from "@/lib/logger";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/constants";
+import { serviceNames, servicesTotalPrice } from "@/lib/booking-summary";
 
 export async function GET(
   request: NextRequest,
@@ -31,7 +32,7 @@ export async function GET(
       return NextResponse.json({ error: "Negocio no encontrado" }, { status: 404 });
     }
 
-    const bookings = await prisma.booking.findMany({
+    const rows = await prisma.booking.findMany({
       where: {
         businessId: business.id,
         client: { whatsapp },
@@ -44,9 +45,15 @@ export async function GET(
         endTime: true,
         status: true,
         manageToken: true,
-        service: { select: { name: true, price: true } },
+        services: { select: { service: { select: { name: true, price: true } } } },
       },
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
+    });
+
+    // `service` se expone como el resumen del turno: nombres unidos + precio total.
+    const bookings = rows.map(({ services, ...rest }) => {
+      const svcs = services.map((bs) => bs.service);
+      return { ...rest, service: { name: serviceNames(svcs), price: servicesTotalPrice(svcs) } };
     });
 
     return NextResponse.json({ bookings });

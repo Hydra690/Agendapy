@@ -10,7 +10,7 @@ import { todayISO } from "@/lib/format";
 export default function RescheduleModal({
   slug,
   bookingId,
-  serviceId,
+  serviceIds,
   clientName,
   currentLabel,
   onClose,
@@ -18,7 +18,7 @@ export default function RescheduleModal({
 }: {
   slug: string;
   bookingId: string;
-  serviceId: string;
+  serviceIds: string[];
   clientName: string;
   currentLabel: string;
   onClose: () => void;
@@ -39,7 +39,7 @@ export default function RescheduleModal({
     setSlotsMsg(null);
     setError(null);
     try {
-      const res = await fetch(`/api/${slug}/slots?date=${d}&serviceId=${serviceId}`);
+      const res = await fetch(`/api/${slug}/slots?date=${d}&serviceIds=${serviceIds.join(",")}`);
       const data = (await res.json()) as { available: boolean; reason?: string; slots?: string[] };
       if (!data.available) setSlotsMsg(data.reason ?? "Ese día no está disponible.");
       else if (!data.slots?.length) setSlotsMsg("No hay horarios libres ese día. Probá otra fecha.");

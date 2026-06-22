@@ -14,7 +14,7 @@ interface Booking {
   endTime: string;
   status: string;
   notes: string | null;
-  service: { name: string; price: number | null; duration: number };
+  service: { name: string; price: number | null };
 }
 
 interface Client {

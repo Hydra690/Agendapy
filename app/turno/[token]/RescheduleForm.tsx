@@ -10,11 +10,11 @@ import { todayISO } from "@/lib/format";
 export default function RescheduleForm({
   token,
   slug,
-  serviceId,
+  serviceIds,
 }: {
   token: string;
   slug: string;
-  serviceId: string;
+  serviceIds: string[];
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -33,7 +33,7 @@ export default function RescheduleForm({
     setSlotsMsg(null);
     setError(null);
     try {
-      const res = await fetch(`/api/${slug}/slots?date=${d}&serviceId=${serviceId}`);
+      const res = await fetch(`/api/${slug}/slots?date=${d}&serviceIds=${serviceIds.join(",")}`);
       const data = (await res.json()) as { available: boolean; reason?: string; slots?: string[] };
       if (!data.available) setSlotsMsg(data.reason ?? "Ese día no está disponible.");
       else if (!data.slots?.length) setSlotsMsg("No hay horarios libres ese día. Probá otra fecha.");

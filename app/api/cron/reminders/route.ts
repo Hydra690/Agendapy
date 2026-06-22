@@ -7,6 +7,7 @@ import { formatDayMonth } from "@/lib/format";
 import { clientReminderMessage } from "@/lib/messages";
 import { addDaysYmd, tomorrowRange, ymdToUtcDate } from "@/lib/timezone";
 import { canUseFeature } from "@/lib/plan";
+import { serviceNames } from "@/lib/booking-summary";
 
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
         date: true,
         startTime: true,
         client: { select: { name: true, whatsapp: true } },
-        service: { select: { name: true } },
+        services: { select: { service: { select: { name: true } } } },
         business: {
           select: { name: true, timezone: true, plan: true, planExpiry: true, trialEndsAt: true },
         },
@@ -64,11 +65,12 @@ export async function GET(request: NextRequest) {
         if (!booking.client.whatsapp) return false;
 
         const fechaLegible = formatDayMonth(dateToISODate(booking.date as Date));
+        const svcNames = serviceNames(booking.services.map((bs) => bs.service));
 
         const message = clientReminderMessage({
           clientName: booking.client.name,
           businessName: booking.business.name,
-          serviceName: booking.service.name,
+          serviceName: svcNames,
           fechaLegible,
           startTime: booking.startTime,
         });
@@ -84,7 +86,7 @@ export async function GET(request: NextRequest) {
                 contentVariables: {
                   "1": booking.client.name,
                   "2": booking.business.name,
-                  "3": booking.service.name,
+                  "3": svcNames,
                   "4": `${fechaLegible} ${booking.startTime}`,
                 },
               }

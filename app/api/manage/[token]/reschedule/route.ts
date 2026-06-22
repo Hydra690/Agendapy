@@ -6,6 +6,7 @@ import { parseDateUTC, dateToISODate } from "@/lib/date";
 import { canCancelNow } from "@/lib/booking";
 import { zonedToUtc } from "@/lib/timezone";
 import { performReschedule, rescheduleErrorResponse } from "@/lib/reschedule";
+import { serviceNames } from "@/lib/booking-summary";
 
 // Reprogramación self-service: el cliente, con su token de gestión, mueve el turno
 // a otro horario. Espeja la cancelación: no requiere sesión y respeta la ventana
@@ -47,8 +48,7 @@ export async function POST(
         business: {
           select: { id: true, name: true, whatsapp: true, timezone: true, minBookingNoticeMinutes: true, cancellationWindowHours: true },
         },
-        service: { select: { id: true, name: true } },
-        services: { select: { serviceId: true } },
+        services: { select: { service: { select: { id: true, name: true } } } },
       },
     });
 
@@ -87,8 +87,8 @@ export async function POST(
         endTime: booking.endTime,
         bufferMinutes: booking.bufferMinutes,
         manageToken: booking.manageToken,
-        serviceIds: booking.services.map((s) => s.serviceId),
-        serviceName: booking.service.name,
+        serviceIds: booking.services.map((s) => s.service.id),
+        serviceName: serviceNames(booking.services.map((s) => s.service)),
       },
       business: booking.business,
       newDate,

@@ -9,6 +9,7 @@ import { sendBookingConfirmationEmail } from "@/lib/email";
 import { parseDateUTC, addMinutes, dateToISODate } from "@/lib/date";
 import { ACTIVE_BOOKING_STATUSES } from "@/lib/constants";
 import { ownerNewBookingMessage, clientConfirmationMessage } from "@/lib/messages";
+import { serviceNames } from "@/lib/booking-summary";
 import { formatDayMonth } from "@/lib/format";
 import { appBaseUrl } from "@/lib/url";
 import {
@@ -160,6 +161,7 @@ export async function POST(
               },
               include: {
                 service: { select: { id: true, name: true, duration: true, price: true } },
+                services: { select: { service: { select: { name: true } } } },
                 client: { select: { id: true, name: true, whatsapp: true, email: true } },
               },
             });
@@ -178,6 +180,7 @@ export async function POST(
     // ── Notificaciones (no bloqueantes; cada intento se persiste en BookingNotification) ──
     // fechaLegible y el link de gestión se comparten entre los avisos.
     const fechaLegible = formatDayMonth(dateToISODate(booking.date as Date));
+    const svcNames = serviceNames(booking.services.map((bs) => bs.service));
     const manageUrl = booking.manageToken
       ? `${appBaseUrl()}/turno/${booking.manageToken}`
       : null;
@@ -188,7 +191,7 @@ export async function POST(
         businessName: business.name,
         clientName: booking.client.name,
         clientWhatsapp: booking.client.whatsapp,
-        serviceName: booking.service.name,
+        serviceName: svcNames,
         fechaLegible,
         startTime: booking.startTime,
       });
@@ -204,7 +207,7 @@ export async function POST(
               contentVariables: {
                 "1": business.name,
                 "2": booking.client.name,
-                "3": booking.service.name,
+                "3": svcNames,
                 "4": `${fechaLegible} ${booking.startTime}`,
               },
             }
@@ -218,7 +221,7 @@ export async function POST(
       const clientMsg = clientConfirmationMessage({
         clientName: booking.client.name,
         businessName: business.name,
-        serviceName: booking.service.name,
+        serviceName: svcNames,
         fechaLegible,
         startTime: booking.startTime,
         manageUrl,
@@ -235,7 +238,7 @@ export async function POST(
               contentVariables: {
                 "1": booking.client.name,
                 "2": business.name,
-                "3": booking.service.name,
+                "3": svcNames,
                 "4": `${fechaLegible} ${booking.startTime}`,
               },
             }
@@ -254,7 +257,7 @@ export async function POST(
           sendBookingConfirmationEmail(clientEmailAddr, {
             clientName: booking.client.name,
             businessName: business.name,
-            serviceName: booking.service.name,
+            serviceName: svcNames,
             fechaLegible,
             startTime: booking.startTime,
             manageUrl,

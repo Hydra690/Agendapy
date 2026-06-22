@@ -7,6 +7,7 @@ import { dateToISODate } from "@/lib/date";
 import CancelButton from "./CancelButton";
 import RescheduleForm from "./RescheduleForm";
 import { formatDayMonthYear as formatLongDate, formatGs as formatPrice } from "@/lib/format";
+import { serviceNames, servicesTotalPrice } from "@/lib/booking-summary";
 
 export const metadata: Metadata = {
   title: "Mi reserva · Agendapy",
@@ -67,7 +68,7 @@ export default async function ManageBookingPage({
     where: { manageToken: token },
     include: {
       business: { select: { name: true, slug: true, whatsapp: true, timezone: true, cancellationWindowHours: true } },
-      service: { select: { id: true, name: true, price: true } },
+      services: { select: { service: { select: { id: true, name: true, price: true } } } },
       client: { select: { name: true } },
     },
   });
@@ -83,6 +84,7 @@ export default async function ManageBookingPage({
   }
 
   const ymd = dateToISODate(booking.date as Date);
+  const svcs = booking.services.map((bs) => bs.service);
   const appointment = zonedToUtc(ymd, booking.startTime, booking.business.timezone);
   const windowHours = booking.business.cancellationWindowHours;
   const isActive = booking.status === "PENDING" || booking.status === "CONFIRMED";
@@ -116,10 +118,10 @@ export default async function ManageBookingPage({
 
         <div style={{ borderTop: "1px solid #eef0f4" }}>
           <Row k="Cliente" v={booking.client.name} />
-          <Row k="Servicio" v={booking.service.name} />
+          <Row k={svcs.length > 1 ? "Servicios" : "Servicio"} v={serviceNames(svcs)} />
           <Row k="Fecha" v={formatLongDate(ymd)} />
           <Row k="Hora" v={`${booking.startTime} – ${booking.endTime} hs`} />
-          <Row k="Precio" v={formatPrice(booking.service.price)} />
+          <Row k="Precio" v={formatPrice(servicesTotalPrice(svcs))} />
         </div>
 
         {isActive && (
@@ -131,7 +133,7 @@ export default async function ManageBookingPage({
                   : "Podés cancelar hasta el momento del turno."}
               </p>
               <div style={{ marginBottom: 12 }}>
-                <RescheduleForm token={token} slug={booking.business.slug} serviceId={booking.service.id} />
+                <RescheduleForm token={token} slug={booking.business.slug} serviceIds={svcs.map((s) => s.id)} />
               </div>
               <CancelButton token={token} />
             </div>

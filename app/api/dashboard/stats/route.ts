@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
         select: {
           status: true,
           startTime: true,
-          service: { select: { price: true, name: true } },
+          services: { select: { service: { select: { price: true, name: true } } } },
         },
       }),
       canStats
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
             },
             select: {
               date: true,
-              service: { select: { price: true } },
+              services: { select: { service: { select: { price: true } } } },
             },
           })
         : Promise.resolve([]),
@@ -91,15 +91,21 @@ export async function GET(request: NextRequest) {
     const completed = monthBookings.filter(b => b.status === "COMPLETED").length;
     const cancelled = monthBookings.filter(b => b.status === "CANCELLED").length;
 
+    // Ingreso = suma de TODOS los servicios del turno (precio null cuenta como 0).
+    const bookingRevenue = (b: { services: { service: { price: number | null } }[] }) =>
+      b.services.reduce((s, x) => s + (x.service.price ?? 0), 0);
+
     const estimatedRevenue = monthBookings
       .filter(b => b.status === "CONFIRMED" || b.status === "COMPLETED")
-      .reduce((sum, b) => sum + (b.service.price ?? 0), 0);
+      .reduce((sum, b) => sum + bookingRevenue(b), 0);
 
-    // Top service (non-cancelled)
+    // Top service (non-cancelled): cuenta cada servicio del turno por separado.
     const serviceCounts: Record<string, number> = {};
     for (const b of monthBookings) {
       if (b.status !== "CANCELLED") {
-        serviceCounts[b.service.name] = (serviceCounts[b.service.name] ?? 0) + 1;
+        for (const bs of b.services) {
+          serviceCounts[bs.service.name] = (serviceCounts[bs.service.name] ?? 0) + 1;
+        }
       }
     }
     const topService = Object.entries(serviceCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
@@ -117,11 +123,11 @@ export async function GET(request: NextRequest) {
     // Week revenue
     const weekRevenue = twoWeekBookings
       .filter(b => new Date(b.date) >= thisWeek.start && new Date(b.date) < thisWeek.end)
-      .reduce((sum, b) => sum + (b.service.price ?? 0), 0);
+      .reduce((sum, b) => sum + bookingRevenue(b), 0);
 
     const prevWeekRevenue = twoWeekBookings
       .filter(b => new Date(b.date) >= prevWeekStart && new Date(b.date) < thisWeek.start)
-      .reduce((sum, b) => sum + (b.service.price ?? 0), 0);
+      .reduce((sum, b) => sum + bookingRevenue(b), 0);
 
     return NextResponse.json({
       // Conteos básicos: todos los tiers.

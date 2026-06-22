@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
 import { requireBusiness } from "@/lib/api-auth";
+import { serviceNames } from "@/lib/booking-summary";
 
 // Paginación acotada para no escanear sin límite cuando el negocio crece.
 function parsePaging(url: string, defLimit: number, maxLimit: number) {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
             select: {
               date: true,
               status: true,
-              service: { select: { name: true } },
+              services: { select: { service: { select: { name: true } } } },
             },
             orderBy: { date: "desc" },
           },
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
         totalVisits: completed,
         totalBookings: c.bookings.length,
         lastVisit: lastBooking?.date ?? null,
-        lastService: lastBooking?.service.name ?? null,
+        lastService: lastBooking ? serviceNames(lastBooking.services.map((bs) => bs.service)) : null,
       };
     });
 

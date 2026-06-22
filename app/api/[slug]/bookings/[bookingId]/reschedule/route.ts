@@ -5,6 +5,7 @@ import { logError } from "@/lib/logger";
 import { RescheduleSchema, formatZodErrors } from "@/lib/validations";
 import { parseDateUTC } from "@/lib/date";
 import { performReschedule, rescheduleErrorResponse } from "@/lib/reschedule";
+import { serviceNames } from "@/lib/booking-summary";
 
 // Reprogramación desde el dashboard: acción del dueño. Requiere sesión y que el
 // negocio (slug) le pertenezca. A diferencia del self-service, no aplica la ventana
@@ -53,8 +54,7 @@ export async function POST(
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
-        service: { select: { id: true, name: true } },
-        services: { select: { serviceId: true } },
+        services: { select: { service: { select: { id: true, name: true } } } },
       },
     });
     if (!booking || booking.businessId !== business.id) {
@@ -76,8 +76,8 @@ export async function POST(
         endTime: booking.endTime,
         bufferMinutes: booking.bufferMinutes,
         manageToken: booking.manageToken,
-        serviceIds: booking.services.map((s) => s.serviceId),
-        serviceName: booking.service.name,
+        serviceIds: booking.services.map((s) => s.service.id),
+        serviceName: serviceNames(booking.services.map((s) => s.service)),
       },
       business,
       newDate,

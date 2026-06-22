@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
 import { requireBusiness, apiError } from "@/lib/api-auth";
 import { canUseFeature } from "@/lib/plan";
+import { serviceNames, servicesTotalPrice } from "@/lib/booking-summary";
 
 const CRM_UPSELL = "El detalle e historial de clientes es una función del plan. Activá un plan para acceder.";
 
@@ -38,7 +39,7 @@ export async function GET(
             endTime: true,
             status: true,
             notes: true,
-            service: { select: { name: true, price: true, duration: true } },
+            services: { select: { service: { select: { name: true, price: true } } } },
           },
           orderBy: { date: "desc" },
         },
@@ -49,7 +50,13 @@ export async function GET(
       return NextResponse.json({ error: "Cliente no encontrado" }, { status: 404 });
     }
 
-    return NextResponse.json({ client });
+    // `service` por reserva = resumen del turno (nombres unidos + precio total).
+    const bookings = client.bookings.map(({ services, ...rest }) => {
+      const svcs = services.map((bs) => bs.service);
+      return { ...rest, service: { name: serviceNames(svcs), price: servicesTotalPrice(svcs) } };
+    });
+
+    return NextResponse.json({ client: { ...client, bookings } });
   } catch (error) {
     logError("[dashboard/clients/:id] GET", error);
     return NextResponse.json({ error: "Error interno del servidor" }, { status: 500 });

@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import styles from "./dashboard.module.css";
 import { formatGs as formatPrice, formatDayMonth as formatDateLong, todayISO } from "@/lib/format";
 import RescheduleModal from "./RescheduleModal";
+import { serviceNames, servicesTotalPrice } from "@/lib/booking-summary";
 
 // ---- Types ----
 
@@ -40,7 +41,7 @@ function trialDaysLeft(business: Business): number | null {
 }
 
 interface BookingClient { name: string; whatsapp: string | null; }
-interface BookingService { id: string; name: string; duration: number; price: number | null; }
+interface BookingServiceItem { id: string; name: string; price: number | null; }
 
 interface Booking {
   id: string;
@@ -49,7 +50,7 @@ interface Booking {
   status: string;
   notes: string | null;
   client: BookingClient;
-  service: BookingService;
+  services: BookingServiceItem[];
 }
 
 // ---- Helpers ----
@@ -105,7 +106,7 @@ type WeekBooking = {
   endTime: string;
   status: string;
   client: { name: string; whatsapp: string | null };
-  service: { name: string; duration: number; price: number | null };
+  services: BookingServiceItem[];
 };
 
 // ---- Page ----
@@ -568,7 +569,7 @@ export default function DashboardPage() {
                         <div className={styles.weekBookingTime}>{b.startTime} – {b.endTime}</div>
                         <div className={styles.weekBookingInfo}>
                           <div className={styles.weekBookingClient}>👤 {b.client.name}</div>
-                          <div className={styles.weekBookingService}>{b.service.name} · {b.service.duration} min</div>
+                          <div className={styles.weekBookingService}>{serviceNames(b.services)}</div>
                         </div>
                         <span className={`${styles.statusBadge} ${STATUS_CLASS[b.status] ?? ""}`}>
                           {STATUS_LABEL[b.status] ?? b.status}
@@ -672,7 +673,7 @@ export default function DashboardPage() {
                   <div>
                     <div className={styles.bookingTime}>{b.startTime} – {b.endTime} hs</div>
                     <div className={styles.bookingService}>
-                      {b.service.name} · {b.service.duration} min · {formatPrice(b.service.price)}
+                      {serviceNames(b.services)} · {formatPrice(servicesTotalPrice(b.services))}
                     </div>
                   </div>
                   <span className={`${styles.statusBadge} ${STATUS_CLASS[b.status] ?? ""}`}>
@@ -761,7 +762,7 @@ export default function DashboardPage() {
                 <div className={styles.modalInfo}>
                   <div className={styles.modalInfoName}>{cancelModal.booking.client.name}</div>
                   <div className={styles.modalInfoTime}>
-                    {cancelModal.booking.startTime} – {cancelModal.booking.endTime} hs · {cancelModal.booking.service.name}
+                    {cancelModal.booking.startTime} – {cancelModal.booking.endTime} hs · {serviceNames(cancelModal.booking.services)}
                   </div>
                 </div>
                 <textarea
@@ -800,7 +801,7 @@ export default function DashboardPage() {
         <RescheduleModal
           slug={business.slug}
           bookingId={rescheduleBooking.id}
-          serviceId={rescheduleBooking.service.id}
+          serviceIds={rescheduleBooking.services.map((s) => s.id)}
           clientName={rescheduleBooking.client.name}
           currentLabel={`${formatDateLong(selectedDate)} · ${rescheduleBooking.startTime} hs`}
           onClose={() => setRescheduleBooking(null)}

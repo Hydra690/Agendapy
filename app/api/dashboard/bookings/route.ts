@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const bookings = await prisma.booking.findMany({
+    const rows = await prisma.booking.findMany({
       where: { businessId: business.id, date },
       select: {
         id: true,
@@ -41,10 +41,16 @@ export async function GET(request: NextRequest) {
         status: true,
         notes: true,
         client: { select: { name: true, whatsapp: true } },
-        service: { select: { id: true, name: true, duration: true, price: true } },
+        services: { select: { service: { select: { id: true, name: true, price: true } } } },
       },
       orderBy: { startTime: "asc" },
     });
+
+    // Aplanamos los servicios del turno para el front (lista + ids para reprogramar).
+    const bookings = rows.map(({ services, ...rest }) => ({
+      ...rest,
+      services: services.map((bs) => bs.service),
+    }));
 
     return NextResponse.json({ date: dateParam, bookings, total: bookings.length });
   } catch (error) {

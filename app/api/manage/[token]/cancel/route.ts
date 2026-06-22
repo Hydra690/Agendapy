@@ -7,6 +7,7 @@ import { zonedToUtc } from "@/lib/timezone";
 import { dateToISODate } from "@/lib/date";
 import { formatDayMonth } from "@/lib/format";
 import { ownerCancellationMessage } from "@/lib/messages";
+import { serviceNames } from "@/lib/booking-summary";
 
 // Cancelación self-service: el cliente, con el token de gestión de su reserva,
 // puede cancelarla siempre que falte al menos `cancellationWindowHours` para el
@@ -25,7 +26,7 @@ export async function POST(
       where: { manageToken: token },
       include: {
         business: { select: { id: true, name: true, whatsapp: true, timezone: true, cancellationWindowHours: true } },
-        service: { select: { name: true } },
+        services: { select: { service: { select: { name: true } } } },
         client: { select: { name: true, whatsapp: true } },
       },
     });
@@ -80,7 +81,7 @@ export async function POST(
         businessName: booking.business.name,
         clientName: booking.client.name,
         clientWhatsapp: booking.client.whatsapp,
-        serviceName: booking.service.name,
+        serviceName: serviceNames(booking.services.map((bs) => bs.service)),
         fechaLegible,
         startTime: booking.startTime,
       });

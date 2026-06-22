@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     const startDate = new Date(Date.UTC(y, m - 1, d));
     const endDate = new Date(Date.UTC(y, m - 1, d + 7));
 
-    const bookings = await prisma.booking.findMany({
+    const rows = await prisma.booking.findMany({
       where: {
         businessId: business.id,
         date: { gte: startDate, lt: endDate },
@@ -33,10 +33,15 @@ export async function GET(request: NextRequest) {
         status: true,
         notes: true,
         client: { select: { name: true, whatsapp: true } },
-        service: { select: { name: true, duration: true, price: true } },
+        services: { select: { service: { select: { id: true, name: true, price: true } } } },
       },
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
     });
+
+    const bookings = rows.map(({ services, ...rest }) => ({
+      ...rest,
+      services: services.map((bs) => bs.service),
+    }));
 
     // Agrupar por fecha
     const days: Record<string, typeof bookings> = {};

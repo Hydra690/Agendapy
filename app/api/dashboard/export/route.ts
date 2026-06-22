@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
         status: true,
         notes: true,
         client: { select: { name: true, whatsapp: true } },
-        service: { select: { name: true, duration: true, price: true } },
+        services: { select: { service: { select: { name: true, duration: true, price: true } } } },
       },
       orderBy: [{ date: "asc" }, { startTime: "asc" }],
     });
@@ -50,19 +50,25 @@ export async function GET(request: NextRequest) {
     const escape = (val: string) => `"${val.replace(/"/g, '""')}"`;
 
     const rows = [
-      ["Fecha", "Hora inicio", "Hora fin", "Estado", "Cliente", "WhatsApp", "Servicio", "Duración (min)", "Precio (Gs)", "Notas"].map(escape).join(","),
-      ...bookings.map(b => [
-        (b.date as Date).toISOString().split("T")[0],
-        b.startTime,
-        b.endTime,
-        STATUS_LABEL[b.status] ?? b.status,
-        b.client.name,
-        b.client.whatsapp ?? "",
-        b.service.name,
-        String(b.service.duration),
-        b.service.price != null ? String(b.service.price) : "",
-        b.notes ?? "",
-      ].map(escape).join(",")),
+      ["Fecha", "Hora inicio", "Hora fin", "Estado", "Cliente", "WhatsApp", "Servicios", "Duración (min)", "Precio (Gs)", "Notas"].map(escape).join(","),
+      ...bookings.map(b => {
+        const svcs = b.services.map(bs => bs.service);
+        const totalDuration = svcs.reduce((acc, s) => acc + s.duration, 0);
+        const anyPrice = svcs.some(s => s.price != null);
+        const totalPrice = anyPrice ? svcs.reduce((acc, s) => acc + (s.price ?? 0), 0) : null;
+        return [
+          (b.date as Date).toISOString().split("T")[0],
+          b.startTime,
+          b.endTime,
+          STATUS_LABEL[b.status] ?? b.status,
+          b.client.name,
+          b.client.whatsapp ?? "",
+          svcs.map(s => s.name).join(" + "),
+          String(totalDuration),
+          totalPrice != null ? String(totalPrice) : "",
+          b.notes ?? "",
+        ].map(escape).join(",");
+      }),
     ];
 
     const csv = "﻿" + rows.join("\n"); // BOM para Excel
