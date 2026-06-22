@@ -5,22 +5,9 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { publicHost } from "@/lib/public-url";
+import { BUSINESS_CATEGORIES } from "@/lib/constants";
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
-
-const CATEGORIES = [
-  { value: "BARBERSHOP", label: "✂️ Barbería" },
-  { value: "BEAUTY_SALON", label: "💅 Salón de belleza" },
-  { value: "VETERINARY", label: "🐾 Veterinaria" },
-  { value: "PSYCHOLOGY", label: "🧠 Psicología" },
-  { value: "DENTISTRY", label: "🦷 Odontología" },
-  { value: "MEDICINE", label: "🩺 Medicina" },
-  { value: "FITNESS", label: "🏋️ Fitness" },
-  { value: "PHOTOGRAPHY", label: "📸 Fotografía" },
-  { value: "TUTORING", label: "📚 Clases particulares" },
-  { value: "MASSAGE", label: "💆 Masajes" },
-  { value: "OTHER", label: "📋 Otro" },
-];
 
 function slugify(text: string): string {
   return text
@@ -135,8 +122,8 @@ export default function OnboardingPage() {
 
           <label style={S.label} htmlFor="category">Categoría</label>
           <select id="category" style={S.select} value={category} onChange={e => setCategory(e.target.value)}>
-            {CATEGORIES.map(c => (
-              <option key={c.value} value={c.value}>{c.label}</option>
+            {BUSINESS_CATEGORIES.map(c => (
+              <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
             ))}
           </select>
 

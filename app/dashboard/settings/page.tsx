@@ -7,6 +7,7 @@ import styles from "./settings.module.css";
 import { usePlan } from "../usePlan";
 import { todayISO, formatDayMonthYear } from "@/lib/format";
 import ImageUploadField from "./ImageUploadField";
+import { CATEGORY_BY_VALUE } from "@/lib/constants";
 
 const TIER_LABEL: Record<string, string> = { FREE: "Gratuito", BASIC: "Básico", PRO: "PRO" };
 
@@ -54,20 +55,7 @@ interface BlockedDate {
 }
 
 // ---- Constants ----
-
-const CATEGORY_LABEL: Record<string, string> = {
-  BARBERSHOP: "Barbería",
-  BEAUTY_SALON: "Salón de belleza",
-  VETERINARY: "Veterinaria",
-  PSYCHOLOGY: "Psicología",
-  DENTISTRY: "Odontología",
-  MEDICINE: "Medicina general",
-  FITNESS: "Entrenador / Gimnasio",
-  PHOTOGRAPHY: "Fotografía",
-  TUTORING: "Clases particulares",
-  MASSAGE: "Masajes / Spa",
-  OTHER: "Otros",
-};
+// Las etiquetas de categoría viven en @/lib/constants (CATEGORY_BY_VALUE).
 
 const DEFAULT_SCHEDULE: DaySchedule[] = [
   { dayOfWeek: "MONDAY",    label: "Lunes",     isActive: false, intervals: [{ startTime: "08:00", endTime: "18:00" }] },
@@ -342,7 +330,7 @@ export default function SettingsPage() {
         <div>
           <h1 className={styles.pageTitle}>Configuración</h1>
           <p className={styles.pageSub}>
-            {business ? `${business.name} · /${business.slug} · ${CATEGORY_LABEL[business.category] ?? business.category}` : ""}
+            {business ? `${business.name} · /${business.slug} · ${CATEGORY_BY_VALUE[business.category]?.label ?? business.category}` : ""}
           </p>
         </div>
       </div>

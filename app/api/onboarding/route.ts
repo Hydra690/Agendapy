@@ -2,12 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
 import { requireUserId } from "@/lib/api-auth";
-
-const VALID_CATEGORIES = [
-  "BARBERSHOP", "BEAUTY_SALON", "VETERINARY", "PSYCHOLOGY",
-  "DENTISTRY", "MEDICINE", "FITNESS", "PHOTOGRAPHY",
-  "TUTORING", "MASSAGE", "OTHER",
-] as const;
+import { BUSINESS_CATEGORY_VALUES } from "@/lib/constants";
+import type { BusinessCategory } from "@prisma/client";
 
 function slugify(text: string): string {
   return text
@@ -44,7 +40,7 @@ export async function POST(request: NextRequest) {
     if (typeof slug !== "string" || slug.trim().length < 2) {
       return NextResponse.json({ error: "Slug inválido" }, { status: 400 });
     }
-    if (!VALID_CATEGORIES.includes(category as (typeof VALID_CATEGORIES)[number])) {
+    if (!BUSINESS_CATEGORY_VALUES.includes(category as BusinessCategory)) {
       return NextResponse.json({ error: "Categoría inválida" }, { status: 400 });
     }
 
@@ -85,7 +81,7 @@ export async function POST(request: NextRequest) {
         data: {
           name: name.trim(),
           slug: finalSlug,
-          category: category as (typeof VALID_CATEGORIES)[number],
+          category: category as BusinessCategory,
           whatsapp: typeof whatsapp === "string" ? whatsapp.trim() || null : null,
           ownerId: userId,
           trialEndsAt,

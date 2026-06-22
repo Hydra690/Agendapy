@@ -8,6 +8,7 @@ import styles from "./booking.module.css";
 import { formatPrice, formatDate, todayISO } from "./format";
 import ReviewModal from "./ReviewModal";
 import MyBookingsModal from "./MyBookingsModal";
+import { CATEGORY_BY_VALUE } from "@/lib/constants";
 
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -75,20 +76,7 @@ interface BookingResult {
 }
 
 // ---- Constants ----
-
-const CATEGORY_INFO: Record<string, { emoji: string; label: string }> = {
-  BARBERSHOP:   { emoji: "✂️",  label: "Barbería" },
-  BEAUTY_SALON: { emoji: "💅",  label: "Salón de belleza" },
-  VETERINARY:   { emoji: "🐾",  label: "Veterinaria" },
-  PSYCHOLOGY:   { emoji: "🧠",  label: "Psicología" },
-  DENTISTRY:    { emoji: "🦷",  label: "Odontología" },
-  MEDICINE:     { emoji: "🩺",  label: "Medicina" },
-  FITNESS:      { emoji: "🏋️", label: "Fitness" },
-  PHOTOGRAPHY:  { emoji: "📸",  label: "Fotografía" },
-  TUTORING:     { emoji: "📚",  label: "Clases particulares" },
-  MASSAGE:      { emoji: "💆",  label: "Masajes" },
-  OTHER:        { emoji: "📋",  label: "Servicios" },
-};
+// Categorías (valor/label/emoji) viven en @/lib/constants (CATEGORY_BY_VALUE).
 
 const DAY_ORDER = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
 const JS_DAY_TO_ENUM = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
@@ -276,7 +264,7 @@ export default function BookingPage() {
   }
 
   const cat = business
-    ? (CATEGORY_INFO[business.category] ?? CATEGORY_INFO.OTHER)
+    ? (CATEGORY_BY_VALUE[business.category] ?? CATEGORY_BY_VALUE.OTHER)
     : null;
 
   const sortedAvailability = business
