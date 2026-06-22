@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import { publicHost } from "@/lib/public-url";
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
 
@@ -127,7 +128,7 @@ export default function OnboardingPage() {
           />
           {slug && (
             <div style={S.slugPreview}>
-              agendapy.com.py/<strong>{slug}</strong>
+              {publicHost()}/<strong>{slug}</strong>
             </div>
           )}
           {slugError && <div style={{ ...S.error, marginTop: -8, marginBottom: 16 }}>{slugError}</div>}

@@ -8,6 +8,7 @@ import styles from "./dashboard.module.css";
 import { formatGs as formatPrice, formatDayMonth as formatDateLong, todayISO } from "@/lib/format";
 import RescheduleModal from "./RescheduleModal";
 import { serviceNames, servicesTotalPrice } from "@/lib/booking-summary";
+import { publicHost, bookingUrl } from "@/lib/public-url";
 
 // ---- Types ----
 
@@ -299,12 +300,12 @@ export default function DashboardPage() {
       {business && (
         <div className={styles.linkBanner}>
           <span className={styles.linkBannerLabel}>Tu link de reservas</span>
-          <span className={styles.linkUrl}>agendapy.com.py/{business.slug}</span>
+          <span className={styles.linkUrl}>{publicHost()}/{business.slug}</span>
           <div className={styles.linkBannerBtns}>
             <button
               className={styles.btnCopyLink}
               onClick={() => {
-                navigator.clipboard.writeText(`agendapy.com.py/${business.slug}`);
+                navigator.clipboard.writeText(bookingUrl(business.slug));
                 setCopied(true);
                 setTimeout(() => setCopied(false), 2000);
               }}
@@ -315,7 +316,7 @@ export default function DashboardPage() {
               className={styles.btnCopyLink}
               style={{ background: "#25D366", color: "#fff" }}
               onClick={() => {
-                const msg = `¡Hola! Reservá tu turno en ${business.name} directo desde tu celular: https://agendapy.com.py/${business.slug} 📅`;
+                const msg = `¡Hola! Reservá tu turno en ${business.name} directo desde tu celular: ${bookingUrl(business.slug)} 📅`;
                 navigator.clipboard.writeText(msg);
                 setCopiedWa(true);
                 setTimeout(() => setCopiedWa(false), 2500);
