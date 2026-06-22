@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import styles from "./dashboard.module.css";
 import { formatGs as formatPrice, formatDayMonth as formatDateLong, todayISO } from "@/lib/format";
+import RescheduleModal from "./RescheduleModal";
 
 // ---- Types ----
 
@@ -39,7 +40,7 @@ function trialDaysLeft(business: Business): number | null {
 }
 
 interface BookingClient { name: string; whatsapp: string | null; }
-interface BookingService { name: string; duration: number; price: number | null; }
+interface BookingService { id: string; name: string; duration: number; price: number | null; }
 
 interface Booking {
   id: string;
@@ -62,6 +63,12 @@ const STATUS_LABEL: Record<string, string> = {
 const STATUS_CLASS: Record<string, string> = {
   PENDING: styles.statusPending, CONFIRMED: styles.statusConfirmed,
   CANCELLED: styles.statusCancelled, COMPLETED: styles.statusCompleted, NO_SHOW: styles.statusNoShow,
+};
+
+// Botón de reprogramar (no hay clase dedicada en el CSS module; estilo neutral inline).
+const btnReschedule: React.CSSProperties = {
+  flex: 1, padding: "10px 12px", borderRadius: 10, fontWeight: 700, fontSize: "0.85rem",
+  cursor: "pointer", border: "1.5px solid #E8EAF0", background: "#fff", color: "#4A4A6A", fontFamily: "inherit",
 };
 
 // ---- Calendar ----
@@ -132,6 +139,7 @@ export default function DashboardPage() {
     reason: string;
     done: boolean;
   }>({ open: false, booking: null, reason: "", done: false });
+  const [rescheduleBooking, setRescheduleBooking] = useState<Booking | null>(null);
 
   useEffect(() => {
     if (authStatus === "unauthenticated") router.push("/login");
@@ -688,6 +696,9 @@ export default function DashboardPage() {
                     <button className={styles.btnConfirm} disabled={busy} onClick={() => patchStatus(b.id, "CONFIRMED")}>
                       {busy ? "..." : "✓ Confirmar"}
                     </button>
+                    <button style={btnReschedule} disabled={busy} onClick={() => setRescheduleBooking(b)}>
+                      🔄 Reprogramar
+                    </button>
                     <button className={styles.btnCancel} disabled={busy} onClick={() => setCancelModal({ open: true, booking: b, reason: "", done: false })}>
                       ✕ Cancelar
                     </button>
@@ -698,6 +709,9 @@ export default function DashboardPage() {
                   <div className={styles.bookingActions}>
                     <button className={styles.btnComplete} disabled={busy} onClick={() => patchStatus(b.id, "COMPLETED")}>
                       {busy ? "..." : "✓ Marcar como completado"}
+                    </button>
+                    <button style={btnReschedule} disabled={busy} onClick={() => setRescheduleBooking(b)}>
+                      🔄 Reprogramar
                     </button>
                     <button className={styles.btnCancel} disabled={busy} onClick={() => setCancelModal({ open: true, booking: b, reason: "", done: false })}>
                       ✕ Cancelar
@@ -779,6 +793,23 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ---- RESCHEDULE MODAL ---- */}
+      {rescheduleBooking && business && (
+        <RescheduleModal
+          slug={business.slug}
+          bookingId={rescheduleBooking.id}
+          serviceId={rescheduleBooking.service.id}
+          clientName={rescheduleBooking.client.name}
+          currentLabel={`${formatDateLong(selectedDate)} · ${rescheduleBooking.startTime} hs`}
+          onClose={() => setRescheduleBooking(null)}
+          onDone={async () => {
+            setRescheduleBooking(null);
+            await loadBookings(selectedDate);
+            await loadMonthDates(calYear, calMonth);
+          }}
+        />
       )}
 
     </>

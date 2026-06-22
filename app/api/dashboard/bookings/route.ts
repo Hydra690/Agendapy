@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
         status: true,
         notes: true,
         client: { select: { name: true, whatsapp: true } },
-        service: { select: { name: true, duration: true, price: true } },
+        service: { select: { id: true, name: true, duration: true, price: true } },
       },
       orderBy: { startTime: "asc" },
     });
