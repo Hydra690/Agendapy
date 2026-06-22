@@ -6,7 +6,7 @@
 import { NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
-import { addMinutes, dateToISODate } from "@/lib/date";
+import { addMinutes, dateToISODate, diffMinutes } from "@/lib/date";
 import { formatDayMonth } from "@/lib/format";
 import { appBaseUrl } from "@/lib/url";
 import { notifyWhatsApp, notifyEmail } from "@/lib/notify";
@@ -26,7 +26,19 @@ import {
 } from "@/lib/booking-engine";
 
 export interface RescheduleInput {
-  booking: { id: string; date: Date; startTime: string; manageToken: string | null };
+  // La reprogramación NO cambia los servicios del turno: la duración total se conserva
+  // (endTime − startTime) y el buffer es el snapshot del turno. serviceIds se usa solo
+  // para la elegibilidad del profesional reasignado.
+  booking: {
+    id: string;
+    date: Date;
+    startTime: string;
+    endTime: string;
+    bufferMinutes: number;
+    manageToken: string | null;
+    serviceIds: string[];
+    serviceName: string; // para las notificaciones (nombre del servicio principal)
+  };
   business: {
     id: string;
     name: string;
@@ -34,7 +46,6 @@ export interface RescheduleInput {
     timezone: string;
     minBookingNoticeMinutes: number;
   };
-  service: { id: string; name: string; duration: number; bufferMinutes: number };
   newDate: Date;
   newDateParam: string;
   newStartTime: string;
@@ -51,12 +62,15 @@ export interface RescheduleInput {
  * `rescheduleErrorResponse`.
  */
 export async function performReschedule(input: RescheduleInput) {
-  const { booking, business, service, newDate, newDateParam, newStartTime, requestedStaffId } = input;
+  const { booking, business, newDate, newDateParam, newStartTime, requestedStaffId } = input;
 
   // Mismas reglas de tiempo que una reserva: no pasado, antelación mínima, no bloqueada.
   await assertBookingTiming(business, newDateParam, newDate, newStartTime);
 
-  const newEndTime = addMinutes(newStartTime, service.duration);
+  // La duración total y el buffer del turno se conservan (no cambian los servicios).
+  const totalDuration = diffMinutes(booking.startTime, booking.endTime);
+  const totalBuffer = booking.bufferMinutes;
+  const newEndTime = addMinutes(newStartTime, totalDuration);
   const prevDate = booking.date;
   const prevStartTime = booking.startTime;
 
@@ -65,7 +79,9 @@ export async function performReschedule(input: RescheduleInput) {
       async (tx) => {
         const assignedStaffId = await assignAndReserveSlot(tx, {
           businessId: business.id,
-          service: { id: service.id, duration: service.duration, bufferMinutes: service.bufferMinutes },
+          serviceIds: booking.serviceIds,
+          totalDuration,
+          totalBuffer,
           bookingDate: newDate,
           startTime: newStartTime,
           requestedStaffId,
@@ -115,7 +131,7 @@ export async function performReschedule(input: RescheduleInput) {
         businessName: business.name,
         clientName: updated.client.name,
         clientWhatsapp: updated.client.whatsapp,
-        serviceName: service.name,
+        serviceName: booking.serviceName,
         fromFechaLegible,
         fromStartTime: prevStartTime,
         toFechaLegible,
@@ -133,7 +149,7 @@ export async function performReschedule(input: RescheduleInput) {
       body: clientRescheduleMessage({
         clientName: updated.client.name,
         businessName: business.name,
-        serviceName: service.name,
+        serviceName: booking.serviceName,
         toFechaLegible,
         toStartTime: newStartTime,
         manageUrl,
@@ -151,7 +167,7 @@ export async function performReschedule(input: RescheduleInput) {
         sendBookingRescheduleEmail(clientEmailAddr, {
           clientName: updated.client.name,
           businessName: business.name,
-          serviceName: service.name,
+          serviceName: booking.serviceName,
           fechaLegible: toFechaLegible,
           startTime: newStartTime,
           manageUrl,

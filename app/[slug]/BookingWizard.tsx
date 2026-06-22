@@ -145,7 +145,7 @@ export default function BookingPage() {
 
   // Wizard state
   const [step, setStep] = useState<1 | 2 | 3 | "success">(1);
-  const [selectedService, setSelectedService] = useState<Service | null>(null);
+  const [selectedServices, setSelectedServices] = useState<Service[]>([]);
   const [selectedDate, setSelectedDate] = useState("");
   const [dateError, setDateError] = useState<string | null>(null);
   const [slots, setSlots] = useState<string[]>([]);
@@ -182,16 +182,17 @@ export default function BookingPage() {
 
   const fetchSlots = useCallback(
     async (date: string) => {
-      if (!selectedService || !date) return;
+      if (selectedServices.length === 0 || !date) return;
       setSlotsLoading(true);
       setSlots([]);
       setNoSlots(false);
       setBlockedReason(null);
       setSelectedSlot(null);
       try {
+        const ids = selectedServices.map((s) => s.id).join(",");
         const staffQuery = selectedStaffId ? `&staffId=${selectedStaffId}` : "";
         const res = await fetch(
-          `/api/${slug}/slots?date=${date}&serviceId=${selectedService.id}${staffQuery}`
+          `/api/${slug}/slots?date=${date}&serviceIds=${ids}${staffQuery}`
         );
         const data = await res.json() as { available: boolean; reason?: string; slots?: string[] };
         if (!data.available) {
@@ -207,7 +208,7 @@ export default function BookingPage() {
         setSlotsLoading(false);
       }
     },
-    [slug, selectedService, selectedStaffId]
+    [slug, selectedServices, selectedStaffId]
   );
 
   useEffect(() => {
@@ -218,7 +219,7 @@ export default function BookingPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedService || !selectedSlot || !selectedDate) return;
+    if (selectedServices.length === 0 || !selectedSlot || !selectedDate) return;
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -226,7 +227,7 @@ export default function BookingPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          serviceId: selectedService.id,
+          serviceIds: selectedServices.map((s) => s.id),
           staffId: selectedStaffId ?? undefined,
           date: selectedDate,
           startTime: selectedSlot,
@@ -258,7 +259,7 @@ export default function BookingPage() {
 
   function resetWizard() {
     setStep(1);
-    setSelectedService(null);
+    setSelectedServices([]);
     setSelectedDate("");
     setDateError(null);
     setSlots([]);
@@ -286,9 +287,29 @@ export default function BookingPage() {
 
   const activeDays = new Set(business?.availability.map(a => a.dayOfWeek) ?? []);
 
-  // Profesionales que pueden hacer el servicio elegido (vacío de serviceIds = todos).
+  // Totales del turno (suma de los servicios elegidos). Precio null si alguno es "a consultar".
+  const totalDuration = selectedServices.reduce((acc, s) => acc + s.duration, 0);
+  const totalPrice =
+    selectedServices.length > 0 && selectedServices.every((s) => s.price != null)
+      ? selectedServices.reduce((acc, s) => acc + (s.price ?? 0), 0)
+      : null;
+
+  function toggleService(service: Service) {
+    setSelectedServices((prev) =>
+      prev.some((s) => s.id === service.id)
+        ? prev.filter((s) => s.id !== service.id)
+        : [...prev, service]
+    );
+    // Cambió el set de servicios → resetear selección de horario/profesional.
+    setSelectedSlot(null);
+    setSelectedStaffId(null);
+  }
+
+  // Profesionales que pueden hacer TODOS los servicios elegidos (vacío de serviceIds = todos).
   const eligibleStaff = (business?.staff ?? []).filter(
-    (s) => selectedService != null && (s.serviceIds.length === 0 || s.serviceIds.includes(selectedService.id))
+    (s) =>
+      selectedServices.length > 0 &&
+      (s.serviceIds.length === 0 || selectedServices.every((svc) => s.serviceIds.includes(svc.id)))
   );
 
   const staffChip = (on: boolean): React.CSSProperties => ({
@@ -541,55 +562,74 @@ export default function BookingPage() {
                 Este negocio no tiene servicios disponibles por el momento.
               </div>
             ) : (
-              <div className={styles.serviceList}>
-                {business.services.map((service) => (
+              <>
+                <p style={{ fontSize: "0.82rem", color: "#8888aa", margin: "0 0 12px" }}>
+                  Podés elegir uno o varios servicios para el mismo turno.
+                </p>
+                <div className={styles.serviceList}>
+                  {business.services.map((service) => {
+                    const on = selectedServices.some((s) => s.id === service.id);
+                    return (
+                      <button
+                        key={service.id}
+                        className={styles.serviceCard}
+                        onClick={() => toggleService(service)}
+                        style={on ? { borderColor: "#00C48C", background: "#E8FFF6" } : undefined}
+                      >
+                        <div className={styles.serviceCardLeft}>
+                          <span className={styles.serviceName}>{service.name}</span>
+                          {service.description && (
+                            <span className={styles.serviceDesc}>{service.description}</span>
+                          )}
+                          <span className={styles.serviceDuration}>
+                            ⏱ {service.duration} min
+                          </span>
+                        </div>
+                        <div className={styles.serviceCardRight}>
+                          <span className={styles.servicePrice}>
+                            {formatPrice(service.price)}
+                          </span>
+                          <span className={styles.serviceArrow} style={{ color: on ? "#00C48C" : undefined }}>
+                            {on ? "✓" : "+"}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedServices.length > 0 && (
                   <button
-                    key={service.id}
-                    className={styles.serviceCard}
+                    className={styles.btnPrimary}
+                    style={{ marginTop: 16 }}
                     onClick={() => {
-                      setSelectedService(service);
                       setSelectedDate("");
                       setDateError(null);
                       setSlots([]);
                       setNoSlots(false);
                       setSelectedSlot(null);
-                      setSelectedStaffId(null);
                       setStep(2);
                     }}
                   >
-                    <div className={styles.serviceCardLeft}>
-                      <span className={styles.serviceName}>{service.name}</span>
-                      {service.description && (
-                        <span className={styles.serviceDesc}>{service.description}</span>
-                      )}
-                      <span className={styles.serviceDuration}>
-                        ⏱ {service.duration} min
-                      </span>
-                    </div>
-                    <div className={styles.serviceCardRight}>
-                      <span className={styles.servicePrice}>
-                        {formatPrice(service.price)}
-                      </span>
-                      <span className={styles.serviceArrow}>→</span>
-                    </div>
+                    Continuar · {selectedServices.length} servicio{selectedServices.length !== 1 ? "s" : ""} · {totalDuration} min · {formatPrice(totalPrice)} →
                   </button>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </div>
         )}
 
         {/* ======== STEP 2 — Elegir fecha y horario ======== */}
-        {step === 2 && selectedService && (
+        {step === 2 && selectedServices.length > 0 && (
           <div>
             <button className={styles.backBtn} onClick={() => setStep(1)}>
-              ← Cambiar servicio
+              ← Cambiar servicios
             </button>
             <h2 className={styles.stepTitle}>Elegí fecha y horario</h2>
             <div className={styles.selectedServiceTag}>
-              <span>{selectedService.name}</span>
+              <span>{selectedServices.map((s) => s.name).join(" + ")}</span>
               <span className={styles.selectedServiceDuration}>
-                ⏱ {selectedService.duration} min · {formatPrice(selectedService.price)}
+                ⏱ {totalDuration} min · {formatPrice(totalPrice)}
               </span>
             </div>
 
@@ -713,7 +753,7 @@ export default function BookingPage() {
         )}
 
         {/* ======== STEP 3 — Datos del cliente ======== */}
-        {step === 3 && selectedService && selectedSlot && selectedDate && (
+        {step === 3 && selectedServices.length > 0 && selectedSlot && selectedDate && (
           <div>
             <button
               className={styles.backBtn}
@@ -732,8 +772,12 @@ export default function BookingPage() {
                 <span className={styles.summaryVal}>{business.name}</span>
               </div>
               <div className={styles.summaryRow}>
-                <span className={styles.summaryKey}>Servicio</span>
-                <span className={styles.summaryVal}>{selectedService.name}</span>
+                <span className={styles.summaryKey}>{selectedServices.length > 1 ? "Servicios" : "Servicio"}</span>
+                <span className={styles.summaryVal}>{selectedServices.map((s) => s.name).join(" + ")}</span>
+              </div>
+              <div className={styles.summaryRow}>
+                <span className={styles.summaryKey}>Duración</span>
+                <span className={styles.summaryVal}>{totalDuration} min</span>
               </div>
               <div className={styles.summaryRow}>
                 <span className={styles.summaryKey}>Fecha</span>
@@ -746,7 +790,7 @@ export default function BookingPage() {
               <div className={styles.summaryRow}>
                 <span className={styles.summaryKey}>Precio</span>
                 <span className={styles.summaryVal}>
-                  {formatPrice(selectedService.price)}
+                  {formatPrice(totalPrice)}
                 </span>
               </div>
             </div>
@@ -857,8 +901,8 @@ export default function BookingPage() {
                 <span className={styles.summaryVal}>{business.name}</span>
               </div>
               <div className={styles.summaryRow}>
-                <span className={styles.summaryKey}>Servicio</span>
-                <span className={styles.summaryVal}>{bookingResult.service.name}</span>
+                <span className={styles.summaryKey}>{selectedServices.length > 1 ? "Servicios" : "Servicio"}</span>
+                <span className={styles.summaryVal}>{selectedServices.map((s) => s.name).join(" + ")}</span>
               </div>
               <div className={styles.summaryRow}>
                 <span className={styles.summaryKey}>Horario</span>

@@ -180,4 +180,32 @@ run("Booking slot unique — rebook tras cancelar (con staff)", () => {
     });
     expect(taker.id).toBeTruthy();
   });
+
+  it("multi-servicio: persiste N filas BookingService y rechaza servicio duplicado", async () => {
+    const svc2 = await prisma.service.create({
+      data: { businessId: ids.businessId, name: "Barba", duration: 15, bufferMinutes: 5 },
+    });
+
+    const b = await prisma.booking.create({
+      data: {
+        date,
+        startTime: "16:00",
+        endTime: "16:45", // 30 (corte) + 15 (barba)
+        bufferMinutes: 5, // suma de buffers (0 + 5)
+        status: "CONFIRMED",
+        businessId: ids.businessId,
+        serviceId: ids.serviceId, // principal
+        clientId: ids.clientId,
+        manageToken: randomBytes(12).toString("base64url"),
+        services: { create: [{ serviceId: ids.serviceId }, { serviceId: svc2.id }] },
+      },
+      include: { services: true },
+    });
+    expect(b.services).toHaveLength(2);
+
+    // @@unique(bookingId, serviceId): el mismo servicio no puede repetirse en la reserva.
+    await expect(
+      prisma.bookingService.create({ data: { bookingId: b.id, serviceId: ids.serviceId } })
+    ).rejects.toMatchObject({ code: "P2002" });
+  });
 });

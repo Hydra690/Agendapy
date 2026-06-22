@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseDateUTC, addMinutes, dateToISODate } from "@/lib/date";
+import { parseDateUTC, addMinutes, dateToISODate, diffMinutes } from "@/lib/date";
 
 describe("parseDateUTC", () => {
   it("parsea una fecha válida a medianoche UTC", () => {
@@ -33,6 +33,17 @@ describe("addMinutes", () => {
 describe("dateToISODate", () => {
   it("devuelve YYYY-MM-DD en UTC", () => {
     expect(dateToISODate(new Date("2026-08-14T00:00:00.000Z"))).toBe("2026-08-14");
+  });
+});
+
+describe("diffMinutes", () => {
+  it("calcula la duración entre dos HH:mm", () => {
+    expect(diffMinutes("10:00", "10:30")).toBe(30);
+    expect(diffMinutes("10:00", "11:15")).toBe(75); // turno multi-servicio (suma)
+    expect(diffMinutes("09:30", "09:30")).toBe(0);
+  });
+  it("es inversa de addMinutes para turnos que no cruzan medianoche", () => {
+    expect(addMinutes("10:00", diffMinutes("10:00", "11:15"))).toBe("11:15");
   });
 });
 

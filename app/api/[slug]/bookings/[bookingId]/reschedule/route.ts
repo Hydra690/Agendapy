@@ -52,7 +52,10 @@ export async function POST(
 
     const booking = await prisma.booking.findUnique({
       where: { id: bookingId },
-      include: { service: { select: { id: true, name: true, duration: true, bufferMinutes: true } } },
+      include: {
+        service: { select: { id: true, name: true } },
+        services: { select: { serviceId: true } },
+      },
     });
     if (!booking || booking.businessId !== business.id) {
       return NextResponse.json({ error: "Reserva no encontrada" }, { status: 404 });
@@ -66,9 +69,17 @@ export async function POST(
     }
 
     const updated = await performReschedule({
-      booking: { id: booking.id, date: booking.date as Date, startTime: booking.startTime, manageToken: booking.manageToken },
+      booking: {
+        id: booking.id,
+        date: booking.date as Date,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        bufferMinutes: booking.bufferMinutes,
+        manageToken: booking.manageToken,
+        serviceIds: booking.services.map((s) => s.serviceId),
+        serviceName: booking.service.name,
+      },
       business,
-      service: booking.service,
       newDate,
       newDateParam: date,
       newStartTime: startTime,

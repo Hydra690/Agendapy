@@ -47,7 +47,8 @@ export async function POST(
         business: {
           select: { id: true, name: true, whatsapp: true, timezone: true, minBookingNoticeMinutes: true, cancellationWindowHours: true },
         },
-        service: { select: { id: true, name: true, duration: true, bufferMinutes: true } },
+        service: { select: { id: true, name: true } },
+        services: { select: { serviceId: true } },
       },
     });
 
@@ -79,9 +80,17 @@ export async function POST(
     }
 
     const updated = await performReschedule({
-      booking: { id: booking.id, date: booking.date as Date, startTime: booking.startTime, manageToken: booking.manageToken },
+      booking: {
+        id: booking.id,
+        date: booking.date as Date,
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        bufferMinutes: booking.bufferMinutes,
+        manageToken: booking.manageToken,
+        serviceIds: booking.services.map((s) => s.serviceId),
+        serviceName: booking.service.name,
+      },
       business: booking.business,
-      service: booking.service,
       newDate,
       newDateParam: date,
       newStartTime: startTime,

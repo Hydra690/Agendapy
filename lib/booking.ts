@@ -150,6 +150,15 @@ export function staffCanDoService(staffServiceIds: string[], serviceId: string):
 }
 
 /**
+ * ¿Este profesional puede hacer TODOS los servicios pedidos? (multi-servicio).
+ * Sin servicios asignados = hace todos. Con asignación, debe incluir cada uno.
+ */
+export function staffCanDoAllServices(staffServiceIds: string[], serviceIds: string[]): boolean {
+  if (staffServiceIds.length === 0) return true;
+  return serviceIds.every((id) => staffServiceIds.includes(id));
+}
+
+/**
  * Elige el PRIMER profesional (en el orden dado) que tiene `slotStart` libre, dado
  * sus bloques de disponibilidad y sus rangos ocupados (fin ya extendido con buffer).
  * Devuelve su id, o null si ninguno está libre. El orden de `candidateIds` define la

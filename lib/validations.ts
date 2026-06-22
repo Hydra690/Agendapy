@@ -2,7 +2,9 @@ import { z } from "zod";
 import { DAYS_OF_WEEK } from "@/lib/constants";
 
 export const BookingSchema = z.object({
-  serviceId: z.string().min(1, "serviceId es requerido"),
+  // Servicios del turno (1..N). El primero es el principal. El route normaliza el
+  // legacy `serviceId` (single) a este array antes de validar.
+  serviceIds: z.array(z.string().min(1)).min(1, "Elegí al menos un servicio").max(10),
   // Profesional elegido (opcional). Si falta, el sistema asigna uno libre ("cualquiera").
   staffId: z.string().min(1).optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date debe tener formato YYYY-MM-DD"),
@@ -33,7 +35,8 @@ export const RescheduleSchema = z.object({
 
 export const SlotsQuerySchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date debe tener formato YYYY-MM-DD"),
-  serviceId: z.string().min(1, "serviceId es requerido"),
+  // El route arma este array desde el query (?serviceIds=a,b o ?serviceId=a).
+  serviceIds: z.array(z.string().min(1)).min(1, "Elegí al menos un servicio").max(10),
 });
 
 export const MyBookingsQuerySchema = z.object({

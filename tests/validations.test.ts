@@ -3,7 +3,7 @@ import { BookingSchema, BusinessUpdateSchema, ServiceCreateSchema } from "@/lib/
 
 describe("BookingSchema", () => {
   const valid = {
-    serviceId: "svc_1",
+    serviceIds: ["svc_1"],
     date: "2026-08-14",
     startTime: "10:00",
     clientName: "Juan Pérez",
@@ -11,6 +11,12 @@ describe("BookingSchema", () => {
   };
   it("acepta un payload válido", () => {
     expect(BookingSchema.safeParse(valid).success).toBe(true);
+  });
+  it("acepta varios servicios", () => {
+    expect(BookingSchema.safeParse({ ...valid, serviceIds: ["svc_1", "svc_2"] }).success).toBe(true);
+  });
+  it("rechaza serviceIds vacío", () => {
+    expect(BookingSchema.safeParse({ ...valid, serviceIds: [] }).success).toBe(false);
   });
   it("rechaza whatsapp no numérico", () => {
     expect(BookingSchema.safeParse({ ...valid, clientWhatsapp: "09a1" }).success).toBe(false);

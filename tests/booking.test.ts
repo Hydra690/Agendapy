@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateSlots, rangesOverlap, availableSlots, dayOfWeekUTC, canCancelNow, cancellationDeadline, unionSlots, staffCanDoService, pickAvailableStaff, checkSingleResourceSlot, buildStaffSchedule } from "@/lib/booking";
+import { generateSlots, rangesOverlap, availableSlots, dayOfWeekUTC, canCancelNow, cancellationDeadline, unionSlots, staffCanDoService, staffCanDoAllServices, pickAvailableStaff, checkSingleResourceSlot, buildStaffSchedule } from "@/lib/booking";
 
 describe("generateSlots", () => {
   it("genera pasos de la duración dentro del intervalo", () => {
@@ -113,6 +113,20 @@ describe("staffCanDoService", () => {
   it("con servicios, solo los asignados", () => {
     expect(staffCanDoService(["svc-1", "svc-2"], "svc-1")).toBe(true);
     expect(staffCanDoService(["svc-2"], "svc-1")).toBe(false);
+  });
+});
+
+describe("staffCanDoAllServices (multi-servicio)", () => {
+  it("sin servicios asignados, hace todos", () => {
+    expect(staffCanDoAllServices([], ["a", "b"])).toBe(true);
+  });
+  it("debe poder hacer TODOS los servicios pedidos", () => {
+    expect(staffCanDoAllServices(["a", "b", "c"], ["a", "b"])).toBe(true);
+    expect(staffCanDoAllServices(["a"], ["a", "b"])).toBe(false); // le falta "b"
+  });
+  it("un solo servicio se comporta como staffCanDoService", () => {
+    expect(staffCanDoAllServices(["a"], ["a"])).toBe(true);
+    expect(staffCanDoAllServices(["b"], ["a"])).toBe(false);
   });
 });
 

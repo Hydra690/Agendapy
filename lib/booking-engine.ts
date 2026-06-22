@@ -9,7 +9,7 @@ import { addMinutes } from "@/lib/date";
 import { todayInTz, meetsBookingNotice } from "@/lib/timezone";
 import {
   checkSingleResourceSlot,
-  staffCanDoService,
+  staffCanDoAllServices,
   dayOfWeekUTC,
   pickAvailableStaff,
   buildStaffSchedule,
@@ -110,7 +110,12 @@ export async function assertBookingTiming(
 
 interface ReserveSlotParams {
   businessId: string;
-  service: { id: string; duration: number; bufferMinutes: number };
+  /** Servicios del turno (todos). Un profesional asignado debe poder hacerlos TODOS. */
+  serviceIds: string[];
+  /** Duración total del turno = suma de las duraciones de los servicios. */
+  totalDuration: number;
+  /** Buffer efectivo del turno = suma de los buffers de los servicios. */
+  totalBuffer: number;
   bookingDate: Date;
   startTime: string;
   /** Profesional pedido explícitamente; si falta, se asigna el primero libre. */
@@ -124,6 +129,10 @@ interface ReserveSlotParams {
  * `tx`. Devuelve el staffId asignado (o null si el negocio es recurso único). Lanza
  * SlotTaken/SlotUnavailable/StaffServiceMismatch/NoStaffForService según el caso.
  *
+ * Multi-servicio: la duración/buffer del slot son los TOTALES (los pasa el caller), y
+ * el profesional asignado debe poder hacer todos los servicios. La ocupación de las
+ * reservas existentes usa su `bufferMinutes` snapshot (no el del servicio principal).
+ *
  * El caller hace el create/update real con el staffId devuelto, en la MISMA tx, y
  * envuelve todo en withSerializableRetry: si dos reservas solapadas concurrentes
  * pasan el pre-chequeo, Postgres aborta una (P2034) y se reintenta.
@@ -132,7 +141,7 @@ export async function assignAndReserveSlot(
   tx: Prisma.TransactionClient,
   params: ReserveSlotParams
 ): Promise<string | null> {
-  const { businessId, service, bookingDate, startTime, requestedStaffId, excludeBookingId } = params;
+  const { businessId, serviceIds, totalDuration, totalBuffer, bookingDate, startTime, requestedStaffId, excludeBookingId } = params;
   const excludeFilter = excludeBookingId ? { id: { not: excludeBookingId } } : {};
 
   const activeStaff = await tx.staff.findMany({
@@ -153,21 +162,21 @@ export async function assignAndReserveSlot(
       }),
       tx.booking.findMany({
         where: { businessId, date: bookingDate, status: { in: [...ACTIVE_BOOKING_STATUSES] }, ...excludeFilter },
-        select: { startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
+        select: { startTime: true, endTime: true, bufferMinutes: true },
       }),
     ]);
     const occupied = sameDayActive.map((b) => ({
       startTime: b.startTime,
-      endTime: addMinutes(b.endTime, b.service.bufferMinutes),
+      endTime: addMinutes(b.endTime, b.bufferMinutes),
     }));
-    const check = checkSingleResourceSlot(blocks, service.duration, service.bufferMinutes, occupied, startTime);
+    const check = checkSingleResourceSlot(blocks, totalDuration, totalBuffer, occupied, startTime);
     if (check === "out_of_hours") throw new SlotUnavailableError();
     if (check === "taken") throw new SlotTakenError();
     return null;
   }
 
-  // ---- Multi-profesional: asignar un profesional elegible y LIBRE ----
-  let candidates = activeStaff.filter((s) => staffCanDoService(s.services.map((x) => x.id), service.id));
+  // ---- Multi-profesional: asignar un profesional que haga TODOS los servicios y LIBRE ----
+  let candidates = activeStaff.filter((s) => staffCanDoAllServices(s.services.map((x) => x.id), serviceIds));
   if (requestedStaffId) {
     candidates = candidates.filter((s) => s.id === requestedStaffId);
     if (candidates.length === 0) throw new StaffServiceMismatchError();
@@ -183,16 +192,16 @@ export async function assignAndReserveSlot(
     }),
     tx.booking.findMany({
       where: { businessId, date: bookingDate, status: { in: [...ACTIVE_BOOKING_STATUSES] }, staffId: { in: ids }, ...excludeFilter },
-      select: { staffId: true, startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
+      select: { staffId: true, startTime: true, endTime: true, bufferMinutes: true },
     }),
   ]);
   const { blocksByStaff, occByStaff } = buildStaffSchedule(
     availRows.map((r) => ({ staffId: r.staffId!, startTime: r.startTime, endTime: r.endTime })),
-    bookingRows.map((b) => ({ staffId: b.staffId!, startTime: b.startTime, endTime: b.endTime, bufferMinutes: b.service.bufferMinutes }))
+    bookingRows.map((b) => ({ staffId: b.staffId!, startTime: b.startTime, endTime: b.endTime, bufferMinutes: b.bufferMinutes }))
   );
   // Primer profesional (orden estable por antigüedad) con el slot libre.
   const assignedStaffId = pickAvailableStaff(
-    candidates.map((s) => s.id), blocksByStaff, occByStaff, startTime, service.duration, service.bufferMinutes
+    candidates.map((s) => s.id), blocksByStaff, occByStaff, startTime, totalDuration, totalBuffer
   );
   if (!assignedStaffId) throw new SlotTakenError();
   return assignedStaffId;

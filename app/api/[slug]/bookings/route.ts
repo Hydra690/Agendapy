@@ -52,7 +52,13 @@ export async function POST(
       );
     }
 
-    const parsed = BookingSchema.safeParse(body);
+    // Compat: aceptamos el legacy `serviceId` (single) normalizándolo a `serviceIds`.
+    const rawBody = body as Record<string, unknown>;
+    if (typeof rawBody.serviceId === "string" && !Array.isArray(rawBody.serviceIds)) {
+      rawBody.serviceIds = [rawBody.serviceId];
+    }
+
+    const parsed = BookingSchema.safeParse(rawBody);
     if (!parsed.success) {
       return NextResponse.json(
         { error: "Datos inválidos", fields: formatZodErrors(parsed.error.issues) },
@@ -60,7 +66,8 @@ export async function POST(
       );
     }
 
-    const { serviceId, staffId, date: dateParam, startTime, clientName, clientWhatsapp, clientEmail, notes } = parsed.data;
+    const { serviceIds, staffId, date: dateParam, startTime, clientName, clientWhatsapp, clientEmail, notes } = parsed.data;
+    const uniqueServiceIds = [...new Set(serviceIds)];
 
     const bookingDate = parseDateUTC(dateParam);
     if (!bookingDate) {
@@ -83,17 +90,23 @@ export async function POST(
     // PastDateError / BookingTooSoonError / BlockedDateError → mapeadas en el catch.
     await assertBookingTiming(business, dateParam, bookingDate, startTime);
 
-    const service = await prisma.service.findFirst({
-      where: { id: serviceId, businessId: business.id, isActive: true },
+    // Todos los servicios del turno deben existir, ser del negocio y estar activos.
+    const services = await prisma.service.findMany({
+      where: { id: { in: uniqueServiceIds }, businessId: business.id, isActive: true },
+      select: { id: true, name: true, duration: true, bufferMinutes: true },
     });
-    if (!service) {
+    if (services.length !== uniqueServiceIds.length) {
       return NextResponse.json(
         { error: "Servicio no encontrado" },
         { status: 404 }
       );
     }
 
-    const endTime = addMinutes(startTime, service.duration);
+    // Servicio principal = el primero elegido. Duración y buffer del turno = suma.
+    const principalServiceId = uniqueServiceIds[0];
+    const totalDuration = services.reduce((acc, s) => acc + s.duration, 0);
+    const totalBuffer = services.reduce((acc, s) => acc + s.bufferMinutes, 0);
+    const endTime = addMinutes(startTime, totalDuration);
 
     // Límite de 2 reservas activas por cliente.
     const activeBookings = await prisma.booking.count({
@@ -121,7 +134,9 @@ export async function POST(
         async (tx) => {
           const assignedStaffId = await assignAndReserveSlot(tx, {
             businessId: business.id,
-            service: { id: service.id, duration: service.duration, bufferMinutes: service.bufferMinutes },
+            serviceIds: uniqueServiceIds,
+            totalDuration,
+            totalBuffer,
             bookingDate,
             startTime,
             requestedStaffId: staffId,
@@ -133,13 +148,15 @@ export async function POST(
                 date: bookingDate,
                 startTime,
                 endTime,
+                bufferMinutes: totalBuffer,
                 status: "PENDING",
                 notes: typeof notes === "string" ? notes.trim() || null : null,
                 manageToken: randomBytes(24).toString("base64url"),
                 businessId: business.id,
-                serviceId: service.id,
+                serviceId: principalServiceId,
                 staffId: assignedStaffId,
                 clientId: client.id,
+                services: { create: uniqueServiceIds.map((id) => ({ serviceId: id })) },
               },
               include: {
                 service: { select: { id: true, name: true, duration: true, price: true } },

@@ -41,3 +41,14 @@ export function addMinutes(time: string, minutes: number): string {
 export function dateToISODate(date: Date): string {
   return date.toISOString().split("T")[0];
 }
+
+/**
+ * Minutos entre dos "HH:mm" (end − start). Asume que no cruzan medianoche (los turnos
+ * reales nunca se envuelven; ver contrato de addMinutes). Útil para recuperar la
+ * duración total de un turno ya creado a partir de su startTime/endTime.
+ */
+export function diffMinutes(start: string, end: string): number {
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  return eh * 60 + em - (sh * 60 + sm);
+}
