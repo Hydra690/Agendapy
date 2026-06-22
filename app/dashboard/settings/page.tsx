@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import styles from "./settings.module.css";
 import { usePlan } from "../usePlan";
+import { todayISO, formatDayMonthYear } from "@/lib/format";
 
 const TIER_LABEL: Record<string, string> = { FREE: "Gratuito", BASIC: "Básico", PRO: "PRO" };
 
@@ -81,21 +82,9 @@ const DEFAULT_INTERVAL: Interval = { startTime: "08:00", endTime: "18:00" };
 
 // ---- Helpers ----
 
-function todayISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
+// La fecha bloqueada viene como ISO con hora; sacamos el día y reusamos el formatter.
 function formatBlockedDate(isoStr: string): string {
-  const datePart = isoStr.split("T")[0];
-  const [year, month, day] = datePart.split("-").map(Number);
-  const d = new Date(year, month - 1, day);
-  return d.toLocaleDateString("es-PY", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
+  return formatDayMonthYear(isoStr.split("T")[0]);
 }
 
 // ---- Page ----

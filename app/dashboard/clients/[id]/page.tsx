@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import PlanUpsell from "../../components/PlanUpsell";
+import { formatGs as formatPrice } from "@/lib/format";
 
 interface Booking {
   id: string;
@@ -40,11 +41,6 @@ function formatDate(isoStr: string): string {
   const part = isoStr.split("T")[0];
   const [y, m, d] = part.split("-").map(Number);
   return new Date(y, m - 1, d).toLocaleDateString("es-PY", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
-}
-
-function formatPrice(price: number | null): string {
-  if (price === null) return "A consultar";
-  return `Gs. ${new Intl.NumberFormat("es-PY").format(price)}`;
 }
 
 export default function ClientDetailPage() {

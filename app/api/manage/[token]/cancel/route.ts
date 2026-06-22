@@ -5,6 +5,8 @@ import { notifyWhatsApp } from "@/lib/notify";
 import { canCancelNow } from "@/lib/booking";
 import { zonedToUtc } from "@/lib/timezone";
 import { dateToISODate } from "@/lib/date";
+import { formatDayMonth } from "@/lib/format";
+import { ownerCancellationMessage } from "@/lib/messages";
 
 // Cancelación self-service: el cliente, con el token de gestión de su reserva,
 // puede cancelarla siempre que falte al menos `cancellationWindowHours` para el
@@ -73,16 +75,15 @@ export async function POST(
 
     // Avisar al dueño por WhatsApp (no bloqueante, con registro persistido).
     if (booking.business.whatsapp) {
-      const [y, m, d] = dateToISODate(booking.date as Date).split("-").map(Number);
-      const fechaLegible = new Date(y, m - 1, d).toLocaleDateString("es-PY", {
-        weekday: "long", day: "numeric", month: "long",
+      const fechaLegible = formatDayMonth(dateToISODate(booking.date as Date));
+      const ownerMsg = ownerCancellationMessage({
+        businessName: booking.business.name,
+        clientName: booking.client.name,
+        clientWhatsapp: booking.client.whatsapp,
+        serviceName: booking.service.name,
+        fechaLegible,
+        startTime: booking.startTime,
       });
-      const ownerMsg =
-        `❌ *Reserva cancelada en ${booking.business.name}*\n\n` +
-        `👤 ${booking.client.name}${booking.client.whatsapp ? ` · ${booking.client.whatsapp}` : ""}\n` +
-        `🛠️ ${booking.service.name}\n` +
-        `📅 ${fechaLegible} a las ${booking.startTime} hs\n\n` +
-        `El cliente canceló desde su link de gestión.`;
       void notifyWhatsApp({
         bookingId: booking.id,
         to: booking.business.whatsapp,

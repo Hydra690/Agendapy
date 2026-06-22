@@ -4,10 +4,9 @@ import { DayOfWeek } from "@prisma/client";
 import { logError } from "@/lib/logger";
 import { AvailabilityPutSchema, formatZodErrors } from "@/lib/validations";
 import { requireBusiness } from "@/lib/api-auth";
+import { DAYS_OF_WEEK } from "@/lib/constants";
 
-const DAY_ORDER: DayOfWeek[] = [
-  "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY",
-];
+const DAY_ORDER: DayOfWeek[] = [...DAYS_OF_WEEK];
 
 interface Interval { startTime: string; endTime: string; }
 

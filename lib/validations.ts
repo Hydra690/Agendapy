@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { DAYS_OF_WEEK } from "@/lib/constants";
 
 export const BookingSchema = z.object({
   serviceId: z.string().min(1, "serviceId es requerido"),
@@ -101,8 +102,7 @@ export const StaffUpdateSchema = z.object({
 });
 
 // Disponibilidad semanal (PUT). Cada día puede tener MÚLTIPLES intervalos
-// (turno partido / pausa de almuerzo).
-const DAYS = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"] as const;
+// (turno partido / pausa de almuerzo). Los días salen de lib/constants (fuente única).
 
 const IntervalSchema = z
   .object({
@@ -130,7 +130,7 @@ export const AvailabilityPutSchema = z.object({
     .array(
       z
         .object({
-          dayOfWeek: z.enum(DAYS),
+          dayOfWeek: z.enum(DAYS_OF_WEEK),
           isActive: z.boolean(),
           intervals: z.array(IntervalSchema).max(6),
         })

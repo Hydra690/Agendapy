@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import styles from "./services.module.css";
+import { formatGs as formatPrice } from "@/lib/format";
 
 interface Service {
   id: string;
@@ -24,11 +25,6 @@ interface FormState {
 }
 
 const EMPTY_FORM: FormState = { name: "", duration: "", buffer: "", price: "", description: "" };
-
-function formatPrice(price: number | null): string {
-  if (price === null) return "A consultar";
-  return `Gs. ${new Intl.NumberFormat("es-PY").format(price)}`;
-}
 
 export default function ServicesPage() {
   const { status: authStatus } = useSession();

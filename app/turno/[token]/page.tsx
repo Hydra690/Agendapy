@@ -5,6 +5,7 @@ import { canCancelNow, cancellationDeadline } from "@/lib/booking";
 import { zonedToUtc } from "@/lib/timezone";
 import { dateToISODate } from "@/lib/date";
 import CancelButton from "./CancelButton";
+import { formatDayMonthYear as formatLongDate, formatGs as formatPrice } from "@/lib/format";
 
 export const metadata: Metadata = {
   title: "Mi reserva · Agendapy",
@@ -18,18 +19,6 @@ const STATUS_LABEL: Record<string, { label: string; bg: string; color: string }>
   COMPLETED: { label: "Realizada",                 bg: "#E0E7FF", color: "#3730A3" },
   NO_SHOW:   { label: "No asistió",                bg: "#F3F4F6", color: "#374151" },
 };
-
-function formatLongDate(ymd: string): string {
-  const [y, m, d] = ymd.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("es-PY", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
-  });
-}
-
-function formatPrice(price: number | null): string {
-  if (price === null) return "A consultar";
-  return `Gs. ${new Intl.NumberFormat("es-PY").format(price)}`;
-}
 
 const shell: React.CSSProperties = {
   minHeight: "100dvh",

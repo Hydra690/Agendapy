@@ -5,6 +5,7 @@ import { logError } from "@/lib/logger";
 import { parseDateUTC, addMinutes } from "@/lib/date";
 import { todayInTz, filterSlotsByNotice } from "@/lib/timezone";
 import { availableSlots, dayOfWeekUTC, unionSlots, staffCanDoService, buildStaffSchedule } from "@/lib/booking";
+import { ACTIVE_BOOKING_STATUSES } from "@/lib/constants";
 
 export async function GET(
   request: NextRequest,
@@ -95,7 +96,7 @@ export async function GET(
       }
       // El "fin ocupado" incluye el buffer del servicio reservado.
       const existing = await prisma.booking.findMany({
-        where: { businessId: business.id, date, status: { in: ["PENDING", "CONFIRMED"] } },
+        where: { businessId: business.id, date, status: { in: [...ACTIVE_BOOKING_STATUSES] } },
         select: { startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
       });
       const occupied = existing.map(b => ({ startTime: b.startTime, endTime: addMinutes(b.endTime, b.service.bufferMinutes) }));
@@ -118,7 +119,7 @@ export async function GET(
           select: { staffId: true, startTime: true, endTime: true },
         }),
         prisma.booking.findMany({
-          where: { businessId: business.id, date, status: { in: ["PENDING", "CONFIRMED"] }, staffId: { in: ids } },
+          where: { businessId: business.id, date, status: { in: [...ACTIVE_BOOKING_STATUSES] }, staffId: { in: ids } },
           select: { staffId: true, startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
         }),
       ]);

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { logError } from "@/lib/logger";
 import { requireBusiness } from "@/lib/api-auth";
+import { ACTIVE_BOOKING_STATUSES } from "@/lib/constants";
 
 export async function GET(request: NextRequest) {
   try {
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
       where: {
         businessId: business.id,
         date: { gte: start, lt: end },
-        status: { in: ["PENDING", "CONFIRMED"] },
+        status: { in: [...ACTIVE_BOOKING_STATUSES] },
       },
       select: { date: true },
       distinct: ["date"],

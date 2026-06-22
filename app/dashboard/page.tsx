@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import styles from "./dashboard.module.css";
+import { formatGs as formatPrice, formatDayMonth as formatDateLong, todayISO } from "@/lib/format";
 
 // ---- Types ----
 
@@ -51,23 +52,7 @@ interface Booking {
 }
 
 // ---- Helpers ----
-
-function todayISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-function formatPrice(price: number | null): string {
-  if (price === null) return "A consultar";
-  return `Gs. ${new Intl.NumberFormat("es-PY").format(price)}`;
-}
-
-function formatDateLong(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, m - 1, d).toLocaleDateString("es-PY", {
-    weekday: "long", day: "numeric", month: "long",
-  });
-}
+// formatPrice / formatDateLong / todayISO viven en @/lib/format (import arriba).
 
 const STATUS_LABEL: Record<string, string> = {
   PENDING: "Pendiente", CONFIRMED: "Confirmado",

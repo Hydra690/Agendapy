@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { notifyWhatsApp } from "@/lib/notify";
 import { logInfo, logError } from "@/lib/logger";
 import { dateToISODate } from "@/lib/date";
+import { formatDayMonth } from "@/lib/format";
+import { clientReminderMessage } from "@/lib/messages";
 import { addDaysYmd, tomorrowRange, ymdToUtcDate } from "@/lib/timezone";
 import { canUseFeature } from "@/lib/plan";
 
@@ -61,17 +63,15 @@ export async function GET(request: NextRequest) {
       bookings.map(async (booking) => {
         if (!booking.client.whatsapp) return false;
 
-        const [y, m, d] = dateToISODate(booking.date as Date).split("-").map(Number);
-        const fechaLegible = new Date(y, m - 1, d).toLocaleDateString("es-PY", {
-          weekday: "long", day: "numeric", month: "long",
-        });
+        const fechaLegible = formatDayMonth(dateToISODate(booking.date as Date));
 
-        const message =
-          `👋 Hola ${booking.client.name}! Te recordamos tu turno de mañana:\n\n` +
-          `📍 *${booking.business.name}*\n` +
-          `🛠️ ${booking.service.name}\n` +
-          `📅 ${fechaLegible} a las ${booking.startTime} hs\n\n` +
-          `¿Necesitás cancelar? Avisanos con tiempo. ¡Hasta mañana! 😊`;
+        const message = clientReminderMessage({
+          clientName: booking.client.name,
+          businessName: booking.business.name,
+          serviceName: booking.service.name,
+          fechaLegible,
+          startTime: booking.startTime,
+        });
 
         return notifyWhatsApp({
           bookingId: booking.id,

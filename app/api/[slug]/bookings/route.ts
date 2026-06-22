@@ -8,6 +8,9 @@ import { notifyWhatsApp } from "@/lib/notify";
 import { parseDateUTC, addMinutes, dateToISODate } from "@/lib/date";
 import { todayInTz, meetsBookingNotice } from "@/lib/timezone";
 import { checkSingleResourceSlot, staffCanDoService, dayOfWeekUTC, pickAvailableStaff, buildStaffSchedule } from "@/lib/booking";
+import { ACTIVE_BOOKING_STATUSES } from "@/lib/constants";
+import { ownerNewBookingMessage } from "@/lib/messages";
+import { formatDayMonth } from "@/lib/format";
 
 // NOTA: el listado de reservas por fecha es información sensible (PII de clientes)
 // y vive solo en el dashboard autenticado: GET /api/dashboard/bookings.
@@ -108,7 +111,7 @@ export async function POST(
       where: {
         businessId: business.id,
         client: { whatsapp: clientWhatsapp },
-        status: { in: ["PENDING", "CONFIRMED"] },
+        status: { in: [...ACTIVE_BOOKING_STATUSES] },
       },
     });
     if (activeBookings >= 2) {
@@ -150,7 +153,7 @@ export async function POST(
                 select: { startTime: true, endTime: true },
               }),
               tx.booking.findMany({
-                where: { businessId: business.id, date: bookingDate, status: { in: ["PENDING", "CONFIRMED"] } },
+                where: { businessId: business.id, date: bookingDate, status: { in: [...ACTIVE_BOOKING_STATUSES] } },
                 select: { startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
               }),
             ]);
@@ -178,7 +181,7 @@ export async function POST(
                 select: { staffId: true, startTime: true, endTime: true },
               }),
               tx.booking.findMany({
-                where: { businessId: business.id, date: bookingDate, status: { in: ["PENDING", "CONFIRMED"] }, staffId: { in: ids } },
+                where: { businessId: business.id, date: bookingDate, status: { in: [...ACTIVE_BOOKING_STATUSES] }, staffId: { in: ids } },
                 select: { staffId: true, startTime: true, endTime: true, service: { select: { bufferMinutes: true } } },
               }),
             ]);
@@ -226,15 +229,15 @@ export async function POST(
 
     // Notificar al dueño por WhatsApp (fire-and-forget, con registro persistido)
     if (business.whatsapp) {
-      const [y, m, d] = dateToISODate(booking.date as Date).split("-").map(Number);
-      const fechaLegible = new Date(y, m - 1, d).toLocaleDateString("es-PY", {
-        weekday: "long", day: "numeric", month: "long",
+      const fechaLegible = formatDayMonth(dateToISODate(booking.date as Date));
+      const ownerMsg = ownerNewBookingMessage({
+        businessName: business.name,
+        clientName: booking.client.name,
+        clientWhatsapp: booking.client.whatsapp,
+        serviceName: booking.service.name,
+        fechaLegible,
+        startTime: booking.startTime,
       });
-      const ownerMsg =
-        `🔔 *Nueva reserva en ${business.name}*\n\n` +
-        `👤 ${booking.client.name}${booking.client.whatsapp ? ` · ${booking.client.whatsapp}` : ""}\n` +
-        `🛠️ ${booking.service.name}\n` +
-        `📅 ${fechaLegible} a las ${booking.startTime} hs`;
       const templateSid = process.env.TWILIO_TEMPLATE_NEW_BOOKING_SID;
       void notifyWhatsApp({
         bookingId: booking.id,

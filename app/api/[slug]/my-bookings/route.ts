@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { MyBookingsQuerySchema, formatZodErrors } from "@/lib/validations";
 import { logError } from "@/lib/logger";
+import { ACTIVE_BOOKING_STATUSES } from "@/lib/constants";
 
 export async function GET(
   request: NextRequest,
@@ -34,7 +35,7 @@ export async function GET(
       where: {
         businessId: business.id,
         client: { whatsapp },
-        status: { in: ["PENDING", "CONFIRMED"] },
+        status: { in: [...ACTIVE_BOOKING_STATUSES] },
       },
       select: {
         id: true,
