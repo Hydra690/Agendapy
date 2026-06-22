@@ -367,6 +367,9 @@ export default function BookingPage() {
         {/* Cover image */}
         {business.coverUrl && step !== "success" && (
           <div style={{ borderRadius: 16, overflow: "hidden", marginBottom: 12 }}>
+            {/* URL remota arbitraria provista por el dueño: next/image exigiría
+                remotePatterns con wildcard (vector SSRF + costo). <img> es lo correcto. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={business.coverUrl}
               alt={`${business.name} portada`}
@@ -378,6 +381,7 @@ export default function BookingPage() {
         {/* Business header */}
         <div className={styles.businessHeader}>
           {business.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- URL remota arbitraria del dueño (ver nota en cover)
             <img src={business.logoUrl} alt={business.name} className={styles.businessLogo} />
           ) : (
             <div className={styles.businessIcon}>{cat?.emoji}</div>

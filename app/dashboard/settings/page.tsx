@@ -464,6 +464,10 @@ export default function SettingsPage() {
           />
           {bizForm.logoUrl && (
             <div className={styles.logoPreview}>
+              {/* URL remota arbitraria provista por el dueño: next/image exigiría
+                  remotePatterns con wildcard (vector SSRF + costo de optimizar
+                  dominios desconocidos). <img> es lo correcto acá. */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={bizForm.logoUrl}
                 alt="Logo preview"
@@ -488,6 +492,7 @@ export default function SettingsPage() {
           </span>
           {bizForm.coverUrl && (
             <div className={styles.logoPreview} style={{ borderRadius: 8, overflow: "hidden", marginTop: 8 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element -- URL remota arbitraria del dueño (ver nota en el preview de logo) */}
               <img
                 src={bizForm.coverUrl}
                 alt="Cover preview"

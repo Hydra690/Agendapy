@@ -19,7 +19,16 @@ export function parseDateUTC(dateStr: string): Date | null {
   return date;
 }
 
-/** Suma minutos a un "HH:mm" y devuelve "HH:mm" (envuelve a 24h). */
+/**
+ * Suma minutos a un "HH:mm" y devuelve "HH:mm". El resultado ENVUELVE a 24h por
+ * diseño (`23:45 + 30 = "00:15"`), porque se usa para mostrar horarios de fin.
+ * CONTRATO: los callers NO deben asumir que el resultado es mayor que `time`
+ * cuando cruza medianoche (un fin "00:15" es < "23:45" como string). En la práctica
+ * los slots que ofrece el motor siempre entran completos antes del cierre (≤ 24:00),
+ * así que un fin de turno real nunca se envuelve; el wrap solo aplica al display de
+ * configuraciones límite. Si algún día se necesita comparar rangos que crucen
+ * medianoche, usar minutos absolutos (no este "HH:mm"). Pinneado por test en date.test.ts.
+ */
 export function addMinutes(time: string, minutes: number): string {
   const [h, m] = time.split(":").map(Number);
   const total = h * 60 + m + minutes;
